@@ -154,14 +154,14 @@ def create_tabs_based_on_role():
                 dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab")
             ])
     else:
-        # Add disabled tabs for guests to show what's available after login
+        # Add clickable tabs for guests to show what's available after login
         base_tabs.extend([
-            dbc.Tab(label="👤 Analiza Doświadczenia", tab_id="experience-tab", disabled=True),
-            dbc.Tab(label="📍 Analiza Lokalizacji", tab_id="location-tab", disabled=True),
-            dbc.Tab(label="🏢 Analiza Firm", tab_id="company-tab", disabled=True),
-            dbc.Tab(label="📈 Trendy Czasowe", tab_id="trends-tab", disabled=True),
-            dbc.Tab(label="💰 Analiza Wynagrodzeń", tab_id="salary-tab", disabled=True),
-            dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab", disabled=True)
+            dbc.Tab(label="👤 Analiza Doświadczenia", tab_id="experience-tab"),
+            dbc.Tab(label="📍 Analiza Lokalizacji", tab_id="location-tab"),
+            dbc.Tab(label="🏢 Analiza Firm", tab_id="company-tab"),
+            dbc.Tab(label="📈 Trendy Czasowe", tab_id="trends-tab"),
+            dbc.Tab(label="💰 Analiza Wynagrodzeń", tab_id="salary-tab"),
+            dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab")
         ])
     
     return dbc.Tabs(id="main-tabs", active_tab="skills-tab", children=base_tabs)
