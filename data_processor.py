@@ -335,16 +335,21 @@ class DataProcessor:
     
     def calculate_skills_salary_correlation(self, df):
         """Calculate correlation between individual skills and salary"""
-        df_with_parsed_salary = self._parse_salary_data(df)
-        
-        if 'salary_avg' not in df_with_parsed_salary.columns or df_with_parsed_salary['salary_avg'].isna().all():
+        try:
+            df_with_parsed_salary = self._parse_salary_data(df)
+            
+            if 'salary_avg' not in df_with_parsed_salary.columns or df_with_parsed_salary['salary_avg'].isna().all():
+                return {}
+            
+            # Get all unique skills
+            all_skills = set()
+            for idx in df_with_parsed_salary.index:
+                row_skills = df_with_parsed_salary.loc[idx, 'skills']
+                if isinstance(row_skills, dict):
+                    all_skills.update(row_skills.keys())
+        except Exception as e:
+            print(f"Error in calculate_skills_salary_correlation: {e}")
             return {}
-        
-        # Get all unique skills
-        all_skills = set()
-        for _, row in df_with_parsed_salary.iterrows():
-            if isinstance(row.get('skills'), dict):
-                all_skills.update(row['skills'].keys())
         
         skill_correlations = {}
         
@@ -353,11 +358,13 @@ class DataProcessor:
             skill_present = []
             skill_salaries = []
             
-            for _, row in df_with_parsed_salary.iterrows():
-                if pd.notna(row['salary_avg']):
-                    has_skill = isinstance(row.get('skills'), dict) and skill in row['skills']
+            for idx in df_with_parsed_salary.index:
+                salary = df_with_parsed_salary.loc[idx, 'salary_avg']
+                if pd.notna(salary):
+                    row_skills = df_with_parsed_salary.loc[idx, 'skills']
+                    has_skill = isinstance(row_skills, dict) and skill in row_skills
                     skill_present.append(1 if has_skill else 0)
-                    skill_salaries.append(row['salary_avg'])
+                    skill_salaries.append(salary)
             
             if len(skill_present) > 10 and sum(skill_present) >= 3:  # Minimum samples
                 try:
