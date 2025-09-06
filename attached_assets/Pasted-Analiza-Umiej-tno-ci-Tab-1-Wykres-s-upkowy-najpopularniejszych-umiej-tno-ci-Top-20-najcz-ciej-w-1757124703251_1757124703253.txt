@@ -1,0 +1,46 @@
+Analiza Umiejętności (Tab 1)
+Wykres słupkowy najpopularniejszych umiejętności - Top 20 najczęściej wymaganych umiejętności
+Metryki statystyk umiejętności - Liczba ofert dla top 10 umiejętności z procentami
+Tabela najczęstszych kombinacji umiejętności - Top 15 kombinacji umiejętności
+Wykres słupkowy wagi umiejętności - Umiejętności ważone według poziomu zaawansowania
+Wykres słupkowy umiejętności według poziomów - Rozkład poziomów (Junior/Regular/Senior/Expert) dla umiejętności
+Macierz ważności umiejętności (scatter plot) - Częstotliwość vs ważność umiejętności
+Tabela rankingu umiejętności - Top 20 umiejętności według wagi ważności
+🎯 Poziomy Doświadczenia (Tab 2)
+Wykres słupkowy rozkładu poziomów doświadczenia - Liczba ofert dla każdego poziomu seniority
+Heatmapa umiejętności vs doświadczenie - Zależność między poziomem doświadczenia a wymaganymi umiejętnościami
+🌍 Analiza Lokalizacji (Tab 3)
+Wykres słupkowy rozkładu ofert w miastach - Top 15 miast według liczby ofert
+Tabela najważniejszych umiejętności w miastach - Umiejętności według lokalizacji
+🏢 Analiza Firm (Tab 4)
+Wykres słupkowy top firm zatrudniających - Top 15 firm z największą liczbą ofert
+Wykres kołowy typów pracy - Podział Remote vs Stacjonarna/Hybrydowa
+📈 Trendy Rynkowe (Tab 5)
+Wykres liniowy trendów publikacji ofert - Liczba ofert w czasie
+Wykres liniowy trendów umiejętności - Top 5 umiejętności w czasie
+Podsumowanie rynku - Tekstowe statystyki
+💰 Analiza Dochodów (Tab 6)
+Metryki wynagrodzeń - Średnia, mediana, zakres wynagrodzeń
+Wykres słupkowy korelacji umiejętności z wynagrodzeniami - Współczynniki korelacji
+Heatmapa macierzy korelacji - Korelacje między czynnikami a wynagrodzeniem
+Wykres regresji liniowej: doświadczenie vs wynagrodzenie - Scatter plot z linią trendu
+Wykres regresji liniowej: liczba umiejętności vs wynagrodzenie - Scatter plot z linią trendu
+Wykres słupkowy najlepiej płacących umiejętności - Top 15 umiejętności według średniej pensji
+Wykres słupkowy wynagrodzeń według doświadczenia - Średnie pensje dla poziomów seniority
+Wykres słupkowy wynagrodzeń według poziomu biegłości - Pensje według poziomów umiejętności
+Histogram rozkładu wynagrodzeń - Rozkład wszystkich wynagrodzeń
+Wykres zakresów wynagrodzeń - Min-max zakresy dla top 10 umiejętności
+Tabela szczegółowych statystyk wynagrodzeń - Top 20 umiejętności ze statystykami pensji
+🔍 Szczegółowa Analiza Umiejętności (Tab 7)
+Metryki przeglądu umiejętności - Podstawowe statystyki dla wybranej umiejętności
+Wykres kołowy rozkładu poziomów umiejętności - Poziomy dla konkretnej umiejętności
+Wykres słupkowy analizy seniority - Częstotliwość umiejętności według seniority
+Tabela statystyk wynagrodzeń - Szczegółowe statystyki pensji dla umiejętności
+Wykres słupkowy wynagrodzeń według poziomu - Pensje według poziomów dla konkretnej umiejętności
+Wykres liniowy trendów rynkowych - Trendy konkretnej umiejętności w czasie
+Listy top firm i miast - Tekstowe listy dla konkretnej umiejętności
+Kompleksowy wykres przeglądu - Subplot z 4 wykresami (poziomy, seniority, firmy, miasta)
+📋 Dodatkowe Elementy Analityczne
+Tabele z danymi - Różne tabele prezentujące surowe dane i statystyki
+Metryki - Liczne metryki wyświetlane w kolumnach
+Ekspandery z wyjaśnieniami - Pomoce interpretacyjne dla każdego wykresu
