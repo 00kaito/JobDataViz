@@ -1,8 +1,8 @@
-modules = ["python-3.11", "python3"]
+modules = ["python-3.11"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["cargo", "glibcLocales", "libiconv", "openssl", "postgresql", "rustc"]
+packages = ["glibcLocales", "openssl", "postgresql"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -46,3 +46,4 @@ localPort = 5000
 externalPort = 80
 
 [agent]
+integrations = ["styling_replit==1.0.0"]
