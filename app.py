@@ -263,8 +263,8 @@ def update_ui_based_on_auth(data):
             dbc.Col([
                 dbc.Nav([
                     dbc.NavItem(dbc.NavLink("Dashboard", href="/dashboard/", active=True)),
-                    dbc.NavItem(dbc.NavLink("Administracja", href="/admin", disabled=not current_user.can_access_admin())),
-                    dbc.NavItem(dbc.NavLink("Wyloguj", href="/logout"))
+                    dbc.NavItem(dbc.NavLink("Administracja", href="/admin", external_link=True, disabled=not current_user.can_access_admin())),
+                    dbc.NavItem(dbc.NavLink("Wyloguj", href="/logout", external_link=True))
                 ], pills=True, className="mb-4")
             ])
         ])
