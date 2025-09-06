@@ -6,7 +6,7 @@ import json
 import os
 
 class LoginForm(FlaskForm):
-    username = StringField('Nazwa użytkownika', validators=[DataRequired(), Length(min=4, max=20)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Hasło', validators=[DataRequired()])
     remember_me = BooleanField('Zapamiętaj mnie')
     submit = SubmitField('Zaloguj się')

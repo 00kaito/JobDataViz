@@ -15,16 +15,16 @@ def create_auth_routes(app):
         
         form = LoginForm()
         if form.validate_on_submit():
-            user = User.query.filter_by(username=form.username.data).first()
+            user = User.query.filter_by(email=form.email.data).first()
             if user and user.check_password(form.password.data) and user.is_active:
                 login_user(user, remember=form.remember_me.data)
                 next_page = request.args.get('next')
                 if not next_page or urlparse(next_page).netloc != '':
                     next_page = url_for('dashboard')
-                flash(f'Witaj, {user.username}!', 'success')
+                flash(f'Witaj, {user.first_name or user.username}!', 'success')
                 return redirect(next_page)
             else:
-                flash('Nieprawidłowa nazwa użytkownika lub hasło', 'error')
+                flash('Nieprawidłowy email lub hasło', 'error')
         
         return render_template('login.html', form=form)
     
@@ -40,8 +40,8 @@ def create_auth_routes(app):
             role = 'admin' if user_count == 0 else 'viewer'
             
             # Generate username from first name and email
-            first_name = form.first_name.data.lower().replace(' ', '')
-            email_prefix = form.email.data.split('@')[0]
+            first_name = (form.first_name.data or '').lower().replace(' ', '')
+            email_prefix = (form.email.data or '').split('@')[0]
             base_username = f"{first_name}_{email_prefix}"
             
             # Ensure username is unique
@@ -62,7 +62,7 @@ def create_auth_routes(app):
             db.session.add(user)
             db.session.commit()
             
-            flash(f'Rejestracja zakończona pomyślnie! Twoja nazwa użytkownika: {username}', 'success')
+            flash(f'Rejestracja zakończona pomyślnie! Witaj, {form.first_name.data}!', 'success')
             return redirect(url_for('login'))
         
         return render_template('register.html', form=form)

@@ -27,6 +27,14 @@ server = Flask(__name__)
 server.config['SECRET_KEY'] = os.environ.get("SESSION_SECRET", 'your-secret-key-change-this')
 server.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+server.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {
+        'sslmode': 'prefer',
+        'connect_timeout': 10
+    }
+}
 server.wsgi_app = ProxyFix(server.wsgi_app, x_proto=1, x_host=1)
 
 # Initialize database
