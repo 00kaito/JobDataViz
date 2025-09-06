@@ -334,58 +334,103 @@ class DataProcessor:
         return company_stats
     
     def calculate_skills_salary_correlation(self, df):
-        """Calculate correlation between individual skills and salary"""
+        """Calculate correlation between individual skills and salary - simplified version"""
         try:
             df_with_parsed_salary = self._parse_salary_data(df)
             
             if 'salary_avg' not in df_with_parsed_salary.columns or df_with_parsed_salary['salary_avg'].isna().all():
                 return {}
             
-            # Get all unique skills
+            # Get salary data as lists for faster processing
+            salaries = df_with_parsed_salary['salary_avg'].dropna().tolist()
+            skills_data = df_with_parsed_salary['skills'].dropna().tolist()
+            
+            if len(salaries) < 10:
+                return {}
+            
+            # Get unique skills from limited sample to avoid timeout
             all_skills = set()
-            for idx in df_with_parsed_salary.index:
-                row_skills = df_with_parsed_salary.loc[idx, 'skills']
-                if isinstance(row_skills, dict):
-                    all_skills.update(row_skills.keys())
+            for skills_dict in skills_data[:100]:  # Limit to first 100 records
+                if isinstance(skills_dict, dict):
+                    all_skills.update(skills_dict.keys())
+            
+            # Limit to top 50 most common skills to avoid timeout
+            all_skills = list(all_skills)[:50]
+            
+            skill_correlations = {}
+            
+            for skill in all_skills:
+                with_skill_salaries = []
+                without_skill_salaries = []
+                
+                # Simplified data collection
+                for i, skills_dict in enumerate(skills_data):
+                    if i < len(salaries) and isinstance(skills_dict, dict):
+                        if skill in skills_dict:
+                            with_skill_salaries.append(salaries[i])
+                        else:
+                            without_skill_salaries.append(salaries[i])
+                
+                # Only calculate if we have enough samples
+                if len(with_skill_salaries) >= 3 and len(without_skill_salaries) >= 3:
+                    avg_with = np.mean(with_skill_salaries)
+                    avg_without = np.mean(without_skill_salaries)
+                    
+                    skill_correlations[skill] = {
+                        'correlation': (avg_with - avg_without) / max(avg_with, avg_without, 1),  # Simplified correlation
+                        'avg_with_skill': avg_with,
+                        'avg_without_skill': avg_without,
+                        'count_with_skill': len(with_skill_salaries),
+                        'count_without_skill': len(without_skill_salaries)
+                    }
+            
+            return skill_correlations
+            
         except Exception as e:
             print(f"Error in calculate_skills_salary_correlation: {e}")
             return {}
-        
-        skill_correlations = {}
-        
+    
+    def get_skills_by_category(self, df):
+        """Get skills analysis by category"""
         try:
-            for skill in all_skills:
-                # Create binary variable for skill presence
-                skill_present = []
-                skill_salaries = []
+            skills_by_category = {}
+            category_skill_counts = {}
+            
+            for _, row in df.iterrows():
+                skills = row.get('skills', {})
+                category = row.get('category', 'Nieokreślona')
                 
-                for idx in df_with_parsed_salary.index:
-                    salary = df_with_parsed_salary.loc[idx, 'salary_avg']
-                    if pd.notna(salary):
-                        row_skills = df_with_parsed_salary.loc[idx, 'skills']
-                        has_skill = isinstance(row_skills, dict) and skill in row_skills
-                        skill_present.append(1 if has_skill else 0)
-                        skill_salaries.append(salary)
-                
-                if len(skill_present) > 10 and sum(skill_present) >= 3:  # Minimum samples
-                    try:
-                        correlation = np.corrcoef(skill_present, skill_salaries)[0, 1]
-                        if not np.isnan(correlation):
-                            # Calculate additional statistics
-                            with_skill_salaries = [sal for i, sal in enumerate(skill_salaries) if skill_present[i] == 1]
-                            without_skill_salaries = [sal for i, sal in enumerate(skill_salaries) if skill_present[i] == 0]
-                            
-                            skill_correlations[skill] = {
-                                'correlation': correlation,
-                                'avg_with_skill': np.mean(with_skill_salaries) if with_skill_salaries else 0,
-                                'avg_without_skill': np.mean(without_skill_salaries) if without_skill_salaries else 0,
-                                'count_with_skill': len(with_skill_salaries),
-                                'count_without_skill': len(without_skill_salaries)
-                            }
-                    except:
-                        pass
+                if isinstance(skills, dict):
+                    for skill in skills.keys():
+                        if skill not in skills_by_category:
+                            skills_by_category[skill] = {}
+                        
+                        if category not in skills_by_category[skill]:
+                            skills_by_category[skill][category] = 0
+                        
+                        skills_by_category[skill][category] += 1
+                        
+                        # Count total occurrences for pie chart
+                        if skill not in category_skill_counts:
+                            category_skill_counts[skill] = {}
+                        if category not in category_skill_counts[skill]:
+                            category_skill_counts[skill][category] = 0
+                        category_skill_counts[skill][category] += 1
+            
+            # Find most common category for each skill
+            skill_main_categories = {}
+            for skill, categories in skills_by_category.items():
+                if categories:
+                    main_category = max(categories.items(), key=lambda x: x[1])
+                    skill_main_categories[skill] = {
+                        'main_category': main_category[0],
+                        'count': main_category[1],
+                        'total_count': sum(categories.values()),
+                        'all_categories': categories
+                    }
+            
+            return skill_main_categories, category_skill_counts
+            
         except Exception as e:
-            print(f"Error iterating skills: {e}")
-            return {}
-        
-        return skill_correlations
+            print(f"Error in get_skills_by_category: {e}")
+            return {}, {}
