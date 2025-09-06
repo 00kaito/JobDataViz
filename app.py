@@ -141,18 +141,21 @@ app.layout = dbc.Container([
         type="dot",
         children=html.Div(id='tab-content', className="mt-4"),
         color="#0d6efd",
-        loading_state={'is_loading': False},
         style={'margin-top': '20px'},
-        overlay_style={"visibility": "visible", "opacity": .5, "backgroundColor": "white"},
+        overlay_style={"visibility": "visible", "opacity": .7, "backgroundColor": "rgba(0,0,0,0.1)"},
         custom_spinner=html.Div([
             html.Div([
-                html.I(className="fas fa-chart-bar fa-2x text-primary mb-2"),
+                html.I(className="fas fa-chart-bar fa-3x text-primary mb-3"),
                 html.Br(),
-                html.Span("Ładowanie analizy danych...", className="text-primary fw-bold"),
-                html.Br(),
-                html.Small("To może potrwać kilka sekund", className="text-muted")
-            ], className="text-center p-4", style={'backgroundColor': 'rgba(255,255,255,0.95)', 'border': '1px solid #dee2e6', 'border-radius': '8px'})
-        ])
+                html.H5("Ładowanie analizy danych...", className="text-primary fw-bold mb-2"),
+                html.P("To może potrwać kilka sekund", className="text-muted mb-0")
+            ], className="text-center p-4 shadow-sm", style={
+                'backgroundColor': 'rgba(255,255,255,0.98)', 
+                'border': '2px solid #0d6efd', 
+                'border-radius': '12px',
+                'min-width': '300px'
+            })
+        ], style={'display': 'flex', 'justify-content': 'center', 'align-items': 'center', 'min-height': '200px'})
     )
     
 ], fluid=True)
