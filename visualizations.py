@@ -687,3 +687,141 @@ class ChartGenerator:
             
             html.Div(id='detailed-skill-analysis')
         ])
+    
+    def create_skill_specific_analysis(self, df, skill):
+        """Create analysis for a specific skill"""
+        # Filter jobs that require this skill
+        skill_jobs = df[df['skills'].apply(
+            lambda x: isinstance(x, dict) and skill in x
+        )]
+        
+        if skill_jobs.empty:
+            return dbc.Alert(f"Brak danych dla umiejętności: {skill}", color="warning")
+        
+        # Basic metrics
+        total_jobs = len(skill_jobs)
+        percentage = (total_jobs / len(df)) * 100
+        
+        # Skill levels distribution
+        skill_levels = []
+        for _, row in skill_jobs.iterrows():
+            if isinstance(row['skills'], dict) and skill in row['skills']:
+                skill_levels.append(row['skills'][skill])
+        
+        level_counts = pd.Series(skill_levels).value_counts()
+        
+        fig_levels = px.pie(
+            values=level_counts.values,
+            names=level_counts.index,
+            title=f'Rozkład Poziomów dla {skill}'
+        )
+        
+        # Seniority analysis
+        seniority_counts = skill_jobs['seniority'].value_counts()
+        seniority_df = pd.DataFrame({
+            'Seniority': seniority_counts.index,
+            'Liczba': seniority_counts.values
+        })
+        
+        fig_seniority = px.bar(
+            seniority_df,
+            x='Seniority',
+            y='Liczba',
+            title=f'Rozkład Seniority dla {skill}'
+        )
+        
+        # Top companies and cities
+        top_companies = skill_jobs['company'].value_counts().head(10)
+        top_cities = skill_jobs['city'].value_counts().head(10)
+        
+        # Salary analysis if available
+        salary_info = ""
+        salary_chart = go.Figure()
+        if 'salary_avg' in skill_jobs.columns:
+            skill_salaries = skill_jobs['salary_avg'].dropna()
+            if len(skill_salaries) > 0:
+                avg_salary = skill_salaries.mean()
+                median_salary = skill_salaries.median()
+                salary_info = f"Średnia: {avg_salary:,.0f} PLN | Mediana: {median_salary:,.0f} PLN"
+                
+                # Salary histogram
+                salary_chart = px.histogram(
+                    skill_salaries,
+                    title=f'Rozkład Wynagrodzeń dla {skill}',
+                    labels={'value': 'Wynagrodzenie (PLN)', 'count': 'Liczba ofert'}
+                )
+        
+        return dbc.Container([
+            # Overview metrics
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("📊 Przegląd Umiejętności"),
+                            html.P(f"Umiejętność: {skill}"),
+                            html.P(f"Liczba ofert: {total_jobs:,}"),
+                            html.P(f"Procent wszystkich ofert: {percentage:.1f}%"),
+                            html.P(f"Informacje o wynagrodzeniu: {salary_info if salary_info else 'Brak danych'}")
+                        ])
+                    ])
+                ], md=12)
+            ], className="mb-4"),
+            
+            # Charts
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("📊 Poziomy Umiejętności"),
+                            dcc.Graph(figure=fig_levels)
+                        ])
+                    ])
+                ], md=6),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("👔 Analiza Seniority"),
+                            dcc.Graph(figure=fig_seniority)
+                        ])
+                    ])
+                ], md=6)
+            ], className="mb-4"),
+            
+            # Salary analysis
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("💰 Analiza Wynagrodzeń"),
+                            dcc.Graph(figure=salary_chart) if salary_info else html.P("Brak danych o wynagrodzeniach dla tej umiejętności")
+                        ])
+                    ])
+                ], md=12)
+            ], className="mb-4") if salary_info else [],
+            
+            # Top lists
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("🏢 Top Firmy"),
+                            html.Div([
+                                html.P(f"{i+1}. {company} ({count} ofert)")
+                                for i, (company, count) in enumerate(top_companies.head(5).items())
+                            ] if len(top_companies) > 0 else [html.P("Brak danych")])
+                        ])
+                    ])
+                ], md=6),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("🌍 Top Miasta"),
+                            html.Div([
+                                html.P(f"{i+1}. {city} ({count} ofert)")
+                                for i, (city, count) in enumerate(top_cities.head(5).items())
+                            ] if len(top_cities) > 0 else [html.P("Brak danych")])
+                        ])
+                    ])
+                ], md=6)
+            ])
+        ])

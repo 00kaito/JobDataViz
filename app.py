@@ -372,5 +372,18 @@ def update_tab_content(active_tab, data):
     
     return html.Div("Wybierz zakładkę aby zobaczyć analizę")
 
+# Callback for detailed skill analysis
+@app.callback(
+    Output('detailed-skill-analysis', 'children'),
+    [Input('detailed-skill-selector', 'value'),
+     Input('filtered-data-store', 'data')]
+)
+def update_detailed_skill_analysis(selected_skill, data):
+    if not selected_skill or not data:
+        return dbc.Alert("Wybierz umiejętność aby zobaczyć szczegółową analizę", color="info")
+    
+    df = pd.DataFrame(data)
+    return chart_generator.create_skill_specific_analysis(df, selected_skill)
+
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=5000)
