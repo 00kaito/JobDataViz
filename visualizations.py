@@ -825,6 +825,7 @@ class ChartGenerator:
     def create_detailed_analysis(self, df):
         """Create detailed analysis tab content"""
         skills_counter, skills_levels, skills_by_seniority = self.data_processor.process_skills_data(df)
+        skill_categories, category_skill_counts = self.data_processor.get_skills_by_category(df)
         
         # Skill selector
         skill_options = [{'label': skill, 'value': skill} for skill, _ in skills_counter.most_common(50)]
@@ -852,6 +853,9 @@ class ChartGenerator:
     
     def create_skill_specific_analysis(self, df, skill):
         """Create analysis for a specific skill"""
+        # Get skill categories data
+        skill_categories, category_skill_counts = self.data_processor.get_skills_by_category(df)
+        
         # Filter jobs that require this skill
         skill_jobs = df[df['skills'].apply(
             lambda x: isinstance(x, dict) and skill in x
@@ -895,6 +899,28 @@ class ChartGenerator:
         # Top companies and cities
         top_companies = skill_jobs['company'].value_counts().head(10)
         top_cities = skill_jobs['city'].value_counts().head(10)
+        
+        # Category analysis for this skill
+        skill_category_info = ""
+        fig_category = go.Figure()
+        
+        if skill in skill_categories:
+            skill_cat_data = skill_categories[skill]
+            main_category = skill_cat_data['main_category']
+            total_count = skill_cat_data['total_count']
+            skill_category_info = f"Główna kategoria: {main_category} ({skill_cat_data['count']}/{total_count} ofert)"
+            
+            # Create pie chart for category distribution
+            if skill in category_skill_counts:
+                categories = list(category_skill_counts[skill].keys())
+                counts = list(category_skill_counts[skill].values())
+                
+                fig_category = px.pie(
+                    values=counts,
+                    names=categories,
+                    title=f'Rozkład Kategorii dla Umiejętności: {skill}'
+                )
+                fig_category.update_traces(textposition='inside', textinfo='percent+label')
         
         # Enhanced salary analysis
         salary_info = ""
@@ -962,11 +988,24 @@ class ChartGenerator:
                             html.P(f"Umiejętność: {skill}"),
                             html.P(f"Liczba ofert: {total_jobs:,}"),
                             html.P(f"Procent wszystkich ofert: {percentage:.1f}%"),
-                            html.P(f"Informacje o wynagrodzeniu: {salary_info if salary_info else 'Brak danych'}")
+                            html.P(f"Informacje o wynagrodzeniu: {salary_info if salary_info else 'Brak danych'}"),
+                            html.P(f"📂 {skill_category_info if skill_category_info else 'Brak danych o kategorii'}")
                         ])
                     ])
                 ], md=12)
             ], className="mb-4"),
+            
+            # Category analysis
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H5("📂 Analiza Kategorii"),
+                            dcc.Graph(figure=fig_category) if not fig_category.data == () else html.P("Brak danych o kategoriach dla tej umiejętności.")
+                        ])
+                    ])
+                ], md=12)
+            ], className="mb-4") if skill_category_info else html.Div(),
             
             # Charts
             dbc.Row([
