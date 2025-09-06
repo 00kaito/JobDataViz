@@ -14,9 +14,9 @@
                     {{ form.hidden_tag() }}
                     
                     <div class="mb-3">
-                        {{ form.username.label(class="form-label") }}
-                        {{ form.username(class="form-control") }}
-                        {% for error in form.username.errors %}
+                        {{ form.first_name.label(class="form-label") }}
+                        {{ form.first_name(class="form-control") }}
+                        {% for error in form.first_name.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
                     </div>
@@ -45,6 +45,17 @@
                         {% endfor %}
                     </div>
                     
+                    <div class="mb-3">
+                        {{ form.preferred_category.label(class="form-label") }}
+                        {{ form.preferred_category(class="form-select") }}
+                        {% for error in form.preferred_category.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <small class="form-text text-muted">
+                            Wybierz branżę, której statystyki zatrudnienia Cię najbardziej interesują.
+                        </small>
+                    </div>
+                    
                     <div class="d-grid">
                         {{ form.submit(class="btn btn-primary") }}
                     </div>
@@ -60,6 +71,7 @@
         <div class="alert alert-info mt-3">
             <i class="fas fa-info-circle me-2"></i>
             <strong>Informacja:</strong> Pierwszy zarejestrowany użytkownik otrzymuje automatycznie rolę administratora.
+            <br><small>Twoja nazwa użytkownika zostanie wygenerowana automatycznie na podstawie imienia i emaila.</small>
         </div>
     </div>
 </div>

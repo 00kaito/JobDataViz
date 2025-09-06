@@ -39,16 +39,30 @@ def create_auth_routes(app):
             user_count = User.query.count()
             role = 'admin' if user_count == 0 else 'viewer'
             
+            # Generate username from first name and email
+            first_name = form.first_name.data.lower().replace(' ', '')
+            email_prefix = form.email.data.split('@')[0]
+            base_username = f"{first_name}_{email_prefix}"
+            
+            # Ensure username is unique
+            username = base_username
+            counter = 1
+            while User.query.filter_by(username=username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            
             user = User(
-                username=form.username.data,
+                username=username,
+                first_name=form.first_name.data,
                 email=form.email.data,
+                preferred_category=form.preferred_category.data,
                 role=role
             )
             user.set_password(form.password.data)
             db.session.add(user)
             db.session.commit()
             
-            flash(f'Rejestracja zakończona pomyślnie! Rola: {role}', 'success')
+            flash(f'Rejestracja zakończona pomyślnie! Twoja nazwa użytkownika: {username}', 'success')
             return redirect(url_for('login'))
         
         return render_template('register.html', form=form)
