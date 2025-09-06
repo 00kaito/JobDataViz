@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import dash
 from dash import dcc, html, Input, Output, State, dash_table
+from dash.exceptions import PreventUpdate
 import plotly.express as px
 import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
@@ -197,7 +198,9 @@ app.layout = dbc.Container([
     # Tabs
     html.Div(id="tabs-container"),
     
-    html.Div(id='tab-content', className="mt-4")
+    html.Div(id='tab-content', className="mt-4", children=[
+        dbc.Alert("Wybierz zakładkę powyżej, aby zobaczyć analizy", color="info")
+    ])
 ])
 
 # Flask routes
@@ -408,7 +411,7 @@ def update_data(list_of_contents, list_of_names, existing_data):
 )
 def update_filter_options(data):
     if not current_user.is_authenticated or not current_user.can_access_advanced():
-        return [], [], [], [], []
+        raise PreventUpdate
         
     if not data:
         return [], [], [], [], []
@@ -449,11 +452,15 @@ def update_filter_options(data):
      Input('skills-filter', 'value'),
      Input('company-filter', 'value'),
      Input('remote-filter', 'value'),
-     Input('category-filter', 'value')]
+     Input('category-filter', 'value')],
+    prevent_initial_call=True
 )
 def filter_data(data, cities, seniority, skills, companies, remote, categories):
     if not current_user.is_authenticated:
-        return []
+        return data if data else []
+    
+    if not current_user.can_access_advanced():
+        return data if data else []
         
     if not data:
         return []
@@ -490,11 +497,12 @@ def filter_data(data, cities, seniority, skills, companies, remote, categories):
      Output('company-filter', 'value'),
      Output('remote-filter', 'value'),
      Output('category-filter', 'value')],
-    [Input('reset-filters', 'n_clicks')]
+    [Input('reset-filters', 'n_clicks')],
+    prevent_initial_call=True
 )
 def reset_filters(n_clicks):
     if not current_user.is_authenticated or not current_user.can_access_advanced():
-        return None, None, None, None, None, None
+        raise PreventUpdate
         
     if n_clicks:
         return None, None, None, None, None, None
@@ -506,9 +514,6 @@ def reset_filters(n_clicks):
     [Input('filtered-data-store', 'data')]
 )
 def update_summary_stats(data):
-    if not current_user.is_authenticated:
-        return dbc.Alert("Musisz być zalogowany", color="danger")
-        
     if not data:
         return dbc.Alert("Brak danych do wyświetlenia", color="info")
     
@@ -575,9 +580,14 @@ def update_summary_stats(data):
 @app.callback(
     Output('tab-content', 'children'),
     [Input('main-tabs', 'active_tab'),
-     Input('filtered-data-store', 'data')]
+     Input('filtered-data-store', 'data')],
+    prevent_initial_call=True
 )
 def update_tab_content(active_tab, data):
+    # Don't process if no active tab (prevents callback error for guests)
+    if not active_tab:
+        raise PreventUpdate
+        
     # Check permissions for tabs that require authentication
     if active_tab != "skills-tab" and not current_user.is_authenticated:
         return dbc.Alert([
