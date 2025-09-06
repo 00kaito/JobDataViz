@@ -64,6 +64,19 @@ chart_generator = ChartGenerator()
 
 def create_protected_layout():
     """Create dashboard layout for authenticated users"""
+    # Check if user is authenticated in Flask context
+    try:
+        if not current_user.is_authenticated:
+            return html.Div([
+                dbc.Alert("Przekierowywanie do strony logowania...", color="info"),
+                dcc.Location(pathname='/login', id='redirect-login')
+            ])
+    except:
+        return html.Div([
+            dbc.Alert("Sesja wygasła. Przekierowywanie do logowania...", color="warning"),
+            dcc.Location(pathname='/login', id='redirect-login')
+        ])
+        
     return dbc.Container([
         dcc.Store(id='job-data-store'),
         dcc.Store(id='filtered-data-store'),
@@ -72,21 +85,12 @@ def create_protected_layout():
         dbc.Row([
             dbc.Col([
                 html.H1("📊 Dashboard Analizy Ofert Pracy", className="text-center mb-2"),
-                html.P(f"Witaj, {current_user.username}!", className="text-center text-muted mb-1"),
-                html.P(f"Rola: {current_user.role.title()}", className="text-center text-muted mb-4")
+                html.Div(id="user-info-header")
             ])
         ]),
         
-        # Navigation for different roles
-        dbc.Row([
-            dbc.Col([
-                dbc.Nav([
-                    dbc.NavItem(dbc.NavLink("Dashboard", href="/dashboard/", active=True)),
-                    dbc.NavItem(dbc.NavLink("Administracja", href="/admin", disabled=not current_user.can_access_admin())),
-                    dbc.NavItem(dbc.NavLink("Wyloguj", href="/logout"))
-                ], pills=True, className="mb-4")
-            ])
-        ]) if current_user.is_authenticated else html.Div(),
+        # Navigation
+        html.Div(id="navigation-menu"),
         
         # Upload section
         dbc.Card([
@@ -111,9 +115,150 @@ def create_protected_layout():
             ])
         ], className="mb-4"),
         
-        # Filters section (only for analysts and admins)
-        html.Div([
-            dbc.Card([
+        # Filters section 
+        html.Div(id="filters-section"),
+        
+        # Summary stats
+        dbc.Row([
+            dbc.Col([
+                html.Div(id='summary-stats')
+            ])
+        ], className="mb-4"),
+        
+        # Main content tabs with role-based access
+        create_tabs_based_on_role(),
+        
+        html.Div(id='tab-content', className="mt-4")
+    ])
+
+def create_tabs_based_on_role():
+    """Create tabs based on user role"""
+    if not current_user.is_authenticated:
+        return html.Div()
+    
+    base_tabs = [
+        dbc.Tab(label="📊 Analiza Umiejętności", tab_id="skills-tab"),
+        dbc.Tab(label="👤 Analiza Doświadczenia", tab_id="experience-tab"),
+        dbc.Tab(label="📍 Analiza Lokalizacji", tab_id="location-tab"),
+        dbc.Tab(label="🏢 Analiza Firm", tab_id="company-tab")
+    ]
+    
+    if current_user.can_access_advanced():
+        base_tabs.extend([
+            dbc.Tab(label="📈 Trendy Czasowe", tab_id="trends-tab"),
+            dbc.Tab(label="💰 Analiza Wynagrodzeń", tab_id="salary-tab"),
+            dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab")
+        ])
+    
+    return dbc.Tabs(id="main-tabs", active_tab="skills-tab", children=base_tabs)
+
+# Set layout - static layout with dynamic components
+app.layout = dbc.Container([
+    dcc.Store(id='job-data-store'),
+    dcc.Store(id='filtered-data-store'),
+    
+    # Header
+    dbc.Row([
+        dbc.Col([
+            html.H1("📊 Dashboard Analizy Ofert Pracy", className="text-center mb-2"),
+            html.Div(id="user-info-header")
+        ])
+    ]),
+    
+    # Navigation
+    html.Div(id="navigation-menu"),
+    
+    # Upload section
+    dbc.Card([
+        dbc.CardBody([
+            html.H4("📁 Wczytaj Dane", className="mb-3"),
+            dcc.Upload(
+                id='upload-data',
+                children=html.Div([
+                    html.I(className="fas fa-cloud-upload-alt fa-2x mb-2"),
+                    html.Br(),
+                    'Przeciągnij i upuść pliki JSON lub kliknij, aby wybrać'
+                ]),
+                style={
+                    'width': '100%', 'height': '60px', 'lineHeight': '60px',
+                    'borderWidth': '1px', 'borderStyle': 'dashed',
+                    'borderRadius': '5px', 'textAlign': 'center', 'margin': '10px',
+                    'borderColor': '#6c757d'
+                },
+                multiple=True
+            ),
+            html.Div(id='upload-status', className="mt-2")
+        ])
+    ], className="mb-4"),
+    
+    # Filters section 
+    html.Div(id="filters-section"),
+    
+    # Summary stats
+    dbc.Row([
+        dbc.Col([
+            html.Div(id='summary-stats')
+        ])
+    ], className="mb-4"),
+    
+    # Tabs
+    html.Div(id="tabs-container"),
+    
+    html.Div(id='tab-content', className="mt-4")
+])
+
+# Flask routes
+@server.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect('/dashboard/')
+    return redirect('/login')
+
+@server.route('/dashboard/')
+@login_required
+def dashboard():
+    # This will be handled by Dash
+    return app.index()
+
+# Callback for dynamic user interface based on authentication
+@app.callback(
+    [Output('user-info-header', 'children'),
+     Output('navigation-menu', 'children'),
+     Output('filters-section', 'children'),
+     Output('tabs-container', 'children')],
+    [Input('job-data-store', 'data')]  # Trigger on page load
+)
+def update_ui_based_on_auth(data):
+    try:
+        if not current_user.is_authenticated:
+            return (
+                html.P("Musisz się zalogować", className="text-center text-muted mb-4"),
+                html.Div(),
+                html.Div(),
+                html.Div()
+            )
+        
+        # User info header
+        user_info = html.Div([
+            html.P(f"Witaj, {current_user.username}!", className="text-center text-muted mb-1"),
+            html.P(f"Rola: {current_user.role.title()}", className="text-center text-muted mb-4")
+        ])
+        
+        # Navigation
+        navigation = dbc.Row([
+            dbc.Col([
+                dbc.Nav([
+                    dbc.NavItem(dbc.NavLink("Dashboard", href="/dashboard/", active=True)),
+                    dbc.NavItem(dbc.NavLink("Administracja", href="/admin", disabled=not current_user.can_access_admin())),
+                    dbc.NavItem(dbc.NavLink("Wyloguj", href="/logout"))
+                ], pills=True, className="mb-4")
+            ])
+        ])
+        
+        # Filters (only for advanced users)
+        filters = html.Div()
+        if current_user.can_access_advanced():
+            filters = dbc.Card([
                 dbc.CardBody([
                     html.H4("🔍 Filtry", className="mb-3"),
                     dbc.Row([
@@ -154,59 +299,19 @@ def create_protected_layout():
                     ])
                 ])
             ], className="mb-4")
-        ], style={'display': 'block' if current_user.is_authenticated and current_user.can_access_advanced() else 'none'}),
         
-        # Summary stats
-        dbc.Row([
-            dbc.Col([
-                html.Div(id='summary-stats')
-            ])
-        ], className="mb-4"),
+        # Tabs based on role
+        tabs = create_tabs_based_on_role()
         
-        # Main content tabs with role-based access
-        create_tabs_based_on_role(),
+        return user_info, navigation, filters, tabs
         
-        html.Div(id='tab-content', className="mt-4")
-    ])
-
-def create_tabs_based_on_role():
-    """Create tabs based on user role"""
-    if not current_user.is_authenticated:
-        return html.Div()
-    
-    base_tabs = [
-        dbc.Tab(label="📊 Analiza Umiejętności", tab_id="skills-tab"),
-        dbc.Tab(label="👤 Analiza Doświadczenia", tab_id="experience-tab"),
-        dbc.Tab(label="📍 Analiza Lokalizacji", tab_id="location-tab"),
-        dbc.Tab(label="🏢 Analiza Firm", tab_id="company-tab")
-    ]
-    
-    if current_user.can_access_advanced():
-        base_tabs.extend([
-            dbc.Tab(label="📈 Trendy Czasowe", tab_id="trends-tab"),
-            dbc.Tab(label="💰 Analiza Wynagrodzeń", tab_id="salary-tab"),
-            dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab")
-        ])
-    
-    return dbc.Tabs(id="main-tabs", active_tab="skills-tab", children=base_tabs)
-
-# Set layout
-app.layout = create_protected_layout
-
-# Flask routes
-@server.route('/')
-def index():
-    if current_user.is_authenticated:
-        return redirect('/dashboard/')
-    return redirect('/login')
-
-@server.route('/dashboard/')
-@login_required
-def dashboard():
-    # This will be handled by Dash
-    return app.index()
-
-# All the existing Dash callbacks remain the same but we need to add authentication checks
+    except Exception as e:
+        return (
+            html.P("Błąd uwierzytelniania", className="text-center text-danger mb-4"),
+            html.Div([dcc.Location(pathname='/login', id='redirect')]),
+            html.Div(),
+            html.Div()
+        )
 
 # Callback for file upload
 @app.callback(

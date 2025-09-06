@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, current_user, login_required
-from werkzeug.urls import url_parse
+from urllib.parse import urlparse
 from models import User, db
 from forms import LoginForm, RegistrationForm
 import secrets
@@ -19,7 +19,7 @@ def create_auth_routes(app):
             if user and user.check_password(form.password.data) and user.is_active:
                 login_user(user, remember=form.remember_me.data)
                 next_page = request.args.get('next')
-                if not next_page or url_parse(next_page).netloc != '':
+                if not next_page or urlparse(next_page).netloc != '':
                     next_page = url_for('dashboard')
                 flash(f'Witaj, {user.username}!', 'success')
                 return redirect(next_page)
