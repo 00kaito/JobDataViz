@@ -233,11 +233,10 @@ class DataProcessor:
     
     def calculate_correlation_matrix(self, df):
         """Calculate correlation matrix for salary analysis"""
-        if 'salary_avg' not in df.columns:
-            return pd.DataFrame()
-        
-        # Parse salary data first
         df_with_parsed_salary = self._parse_salary_data(df)
+        
+        if 'salary_avg' not in df_with_parsed_salary.columns or df_with_parsed_salary['salary_avg'].isna().all():
+            return pd.DataFrame()
         
         # Calculate skills count
         skills_counts = []
@@ -254,12 +253,12 @@ class DataProcessor:
         corr_data = corr_data.dropna()
         
         # Add categorical variables as dummies
-        if 'seniority' in df.columns:
-            seniority_dummies = pd.get_dummies(df['seniority'], prefix='seniority')
+        if 'seniority' in df_with_parsed_salary.columns:
+            seniority_dummies = pd.get_dummies(df_with_parsed_salary['seniority'], prefix='seniority')
             corr_data = pd.concat([corr_data, seniority_dummies], axis=1)
         
-        if 'remote' in df.columns:
-            corr_data['remote'] = df['remote'].astype(int)
+        if 'remote' in df_with_parsed_salary.columns:
+            corr_data['remote'] = df_with_parsed_salary['remote'].astype(int)
         
         return corr_data.corr()
     
@@ -333,3 +332,49 @@ class DataProcessor:
             }
         
         return company_stats
+    
+    def calculate_skills_salary_correlation(self, df):
+        """Calculate correlation between individual skills and salary"""
+        df_with_parsed_salary = self._parse_salary_data(df)
+        
+        if 'salary_avg' not in df_with_parsed_salary.columns or df_with_parsed_salary['salary_avg'].isna().all():
+            return {}
+        
+        # Get all unique skills
+        all_skills = set()
+        for _, row in df_with_parsed_salary.iterrows():
+            if isinstance(row.get('skills'), dict):
+                all_skills.update(row['skills'].keys())
+        
+        skill_correlations = {}
+        
+        for skill in all_skills:
+            # Create binary variable for skill presence
+            skill_present = []
+            skill_salaries = []
+            
+            for _, row in df_with_parsed_salary.iterrows():
+                if pd.notna(row['salary_avg']):
+                    has_skill = isinstance(row.get('skills'), dict) and skill in row['skills']
+                    skill_present.append(1 if has_skill else 0)
+                    skill_salaries.append(row['salary_avg'])
+            
+            if len(skill_present) > 10 and sum(skill_present) >= 3:  # Minimum samples
+                try:
+                    correlation = np.corrcoef(skill_present, skill_salaries)[0, 1]
+                    if not np.isnan(correlation):
+                        # Calculate additional statistics
+                        with_skill_salaries = [sal for i, sal in enumerate(skill_salaries) if skill_present[i] == 1]
+                        without_skill_salaries = [sal for i, sal in enumerate(skill_salaries) if skill_present[i] == 0]
+                        
+                        skill_correlations[skill] = {
+                            'correlation': correlation,
+                            'avg_with_skill': np.mean(with_skill_salaries) if with_skill_salaries else 0,
+                            'avg_without_skill': np.mean(without_skill_salaries) if without_skill_salaries else 0,
+                            'count_with_skill': len(with_skill_salaries),
+                            'count_without_skill': len(without_skill_salaries)
+                        }
+                except:
+                    continue
+        
+        return skill_correlations

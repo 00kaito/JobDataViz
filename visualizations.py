@@ -602,6 +602,7 @@ class ChartGenerator:
         
         skill_salary_stats = self.data_processor.get_salary_by_skill(df)
         correlation_matrix = self.data_processor.calculate_correlation_matrix(df)
+        skills_salary_correlation = self.data_processor.calculate_skills_salary_correlation(df)
         
         # Salary distribution histogram
         fig_salary_dist = px.histogram(
@@ -651,6 +652,68 @@ class ChartGenerator:
             fig_seniority_salary = go.Figure()
             fig_seniority_salary.add_annotation(text="Brak danych o poziomach doświadczenia", 
                                                x=0.5, y=0.5, showarrow=False)
+        
+        # Skills salary correlation table
+        skills_corr_table = html.Div()
+        if skills_salary_correlation:
+            # Sort by correlation coefficient
+            sorted_skills = sorted(skills_salary_correlation.items(), 
+                                 key=lambda x: abs(x[1]['correlation']), reverse=True)[:20]
+            
+            corr_data = []
+            for skill, stats in sorted_skills:
+                salary_diff = stats['avg_with_skill'] - stats['avg_without_skill']
+                corr_data.append({
+                    'Umiejętność': skill,
+                    'Korelacja': f"{stats['correlation']:.3f}",
+                    'Średnia z umiejętnością': f"{stats['avg_with_skill']:,.0f} PLN",
+                    'Średnia bez umiejętności': f"{stats['avg_without_skill']:,.0f} PLN",
+                    'Różnica': f"{salary_diff:+,.0f} PLN",
+                    'Liczba z umiejętnością': stats['count_with_skill']
+                })
+            
+            skills_corr_table = dash_table.DataTable(
+                data=corr_data,
+                columns=[
+                    {'name': 'Umiejętność', 'id': 'Umiejętność'},
+                    {'name': 'Korelacja', 'id': 'Korelacja'},
+                    {'name': 'Średnia z umiejętnością', 'id': 'Średnia z umiejętnością'},
+                    {'name': 'Średnia bez umiejętności', 'id': 'Średnia bez umiejętności'},
+                    {'name': 'Różnica', 'id': 'Różnica'},
+                    {'name': 'Liczba ofert', 'id': 'Liczba z umiejętnością'}
+                ],
+                style_cell={
+                    'textAlign': 'left',
+                    'fontSize': '12px',
+                    'backgroundColor': '#343a40',
+                    'color': 'white',
+                    'border': '1px solid rgba(255, 255, 255, 0.2)'
+                },
+                style_header={
+                    'backgroundColor': '#6c757d',
+                    'color': 'white',
+                    'fontWeight': 'bold',
+                    'border': '1px solid rgba(255, 255, 255, 0.3)'
+                },
+                style_data={
+                    'backgroundColor': '#343a40',
+                    'color': 'white'
+                },
+                page_size=10,
+                sort_action='native'
+            )
+        
+        # Correlation matrix heatmap
+        fig_correlation_matrix = go.Figure()
+        if not correlation_matrix.empty:
+            fig_correlation_matrix = px.imshow(
+                correlation_matrix,
+                title='Macierz Korelacji - Czynniki Wpływające na Wynagrodzenie',
+                aspect='auto',
+                color_continuous_scale='RdBu',
+                zmin=-1, zmax=1
+            )
+            fig_correlation_matrix.update_layout(height=500)
         
         # Correlation with experience
         if 'skillsCount' in salary_df.columns:
@@ -730,6 +793,32 @@ class ChartGenerator:
                         ])
                     ])
                 ], md=6)
+            ], className="mb-4"),
+            
+            # Skills correlation table
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("📊 Korelacja Umiejętności z Wynagrodzeniami"),
+                            html.P("Tabela pokazuje korelację poszczególnych umiejętności z wysokością wynagrodzenia:"),
+                            skills_corr_table if skills_salary_correlation else html.P("Brak wystarczających danych do analizy korelacji umiejętności.")
+                        ])
+                    ])
+                ], md=12)
+            ], className="mb-4"),
+            
+            # Correlation matrix
+            dbc.Row([
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("🔥 Macierz Korelacji"),
+                            html.P("Heatmapa pokazuje korelacje między różnymi czynnikami a wynagrodzeniem:"),
+                            dcc.Graph(figure=fig_correlation_matrix) if not correlation_matrix.empty else html.P("Brak danych do macierzy korelacji.")
+                        ])
+                    ])
+                ], md=12)
             ])
         ])
     
