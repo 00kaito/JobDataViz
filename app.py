@@ -135,8 +135,25 @@ app.layout = dbc.Container([
         dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab")
     ], id="main-tabs", active_tab="skills-tab"),
     
-    # Tab content
-    html.Div(id='tab-content', className="mt-4")
+    # Tab content with loading
+    dcc.Loading(
+        id="loading",
+        type="dot",
+        children=html.Div(id='tab-content', className="mt-4"),
+        color="#0d6efd",
+        loading_state={'is_loading': False},
+        style={'margin-top': '20px'},
+        overlay_style={"visibility": "visible", "opacity": .5, "backgroundColor": "white"},
+        custom_spinner=html.Div([
+            html.Div([
+                html.I(className="fas fa-chart-bar fa-2x text-primary mb-2"),
+                html.Br(),
+                html.Span("Ładowanie analizy danych...", className="text-primary fw-bold"),
+                html.Br(),
+                html.Small("To może potrwać kilka sekund", className="text-muted")
+            ], className="text-center p-4", style={'backgroundColor': 'rgba(255,255,255,0.95)', 'border': '1px solid #dee2e6', 'border-radius': '8px'})
+        ])
+    )
     
 ], fluid=True)
 
