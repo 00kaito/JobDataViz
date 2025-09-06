@@ -85,43 +85,26 @@ class ChartGenerator:
             fig_weighted.add_annotation(text="Brak danych do analizy wag", 
                                       x=0.5, y=0.5, showarrow=False)
         
-        # Skills combinations table
-        if skill_combinations:
-            combo_data = []
-            for combo, count in skill_combinations:
-                combo_data.append({
-                    'Kombinacja': ' + '.join(combo),
-                    'Liczba wystąpień': count,
-                    'Procent': f"{(count/len(df)*100):.1f}%"
-                })
-            
-            combo_table = dash_table.DataTable(
-                data=combo_data,
-                columns=[
-                    {'name': 'Kombinacja Umiejętności', 'id': 'Kombinacja'},
-                    {'name': 'Liczba wystąpień', 'id': 'Liczba wystąpień'},
-                    {'name': 'Procent ofert', 'id': 'Procent'}
-                ],
-                style_cell={
-                    'textAlign': 'left',
-                    'backgroundColor': '#343a40',
-                    'color': 'white',
-                    'border': '1px solid rgba(255, 255, 255, 0.2)'
-                },
-                style_header={
-                    'backgroundColor': '#6c757d',
-                    'color': 'white',
-                    'fontWeight': 'bold',
-                    'border': '1px solid rgba(255, 255, 255, 0.3)'
-                },
-                style_data={
-                    'backgroundColor': '#343a40',
-                    'color': 'white'
-                },
-                page_size=10
-            )
-        else:
-            combo_table = html.P("Brak danych o kombinacjach umiejętności")
+        # Skills selector for co-occurrence analysis
+        top_20_skills_list = [skill for skill, _ in skills_counter.most_common(20)]
+        skill_selector = dcc.Dropdown(
+            id='skill-selector',
+            options=[{'label': skill, 'value': skill} for skill in top_20_skills_list],
+            value=[],
+            multi=True,
+            placeholder="Wybierz maksymalnie 3 umiejętności...",
+            style={
+                'backgroundColor': '#343a40',
+                'color': 'black'
+            }
+        )
+        
+        # Container for co-occurring skills results
+        cooccurrence_results = html.Div(
+            id='cooccurrence-results',
+            children=[html.P("Wybierz umiejętności, aby zobaczyć najczęściej współwystępujące z nimi.", 
+                           style={'color': 'white', 'textAlign': 'center', 'padding': '20px'})]
+        )
         
         # Skills statistics table
         top_10_skills = skills_counter.most_common(10)
@@ -231,8 +214,11 @@ class ChartGenerator:
                 dbc.Col([
                     dbc.Card([
                         dbc.CardBody([
-                            html.H4("🔗 Najczęstsze Kombinacje Umiejętności"),
-                            combo_table
+                            html.H4("🔗 Współwystępujące Umiejętności"),
+                            html.P("Wybierz maksymalnie 3 umiejętności:", className="text-muted mb-2"),
+                            skill_selector,
+                            html.Br(),
+                            cooccurrence_results
                         ])
                     ])
                 ], md=4),

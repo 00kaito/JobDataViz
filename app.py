@@ -414,5 +414,62 @@ def update_detailed_skill_analysis(selected_skill, data):
     df = pd.DataFrame(data)
     return chart_generator.create_skill_specific_analysis(df, selected_skill)
 
+# Callback for co-occurring skills
+@app.callback(
+    Output('cooccurrence-results', 'children'),
+    [Input('skill-selector', 'value'),
+     Input('filtered-data-store', 'data')]
+)
+def update_cooccurrence_results(selected_skills, data):
+    if not selected_skills or not data:
+        return html.P("Wybierz umiejętności, aby zobaczyć najczęściej współwystępujące z nimi.", 
+                     style={'color': 'white', 'textAlign': 'center', 'padding': '20px'})
+    
+    # Limit to 3 skills maximum
+    if len(selected_skills) > 3:
+        selected_skills = selected_skills[:3]
+    
+    df = pd.DataFrame(data)
+    data_processor = DataProcessor()
+    cooccurring = data_processor.get_cooccurring_skills(df, selected_skills)
+    
+    if not cooccurring:
+        return html.P("Brak współwystępujących umiejętności dla wybranych opcji.", 
+                     style={'color': 'white', 'textAlign': 'center', 'padding': '20px'})
+    
+    # Create table with results
+    cooccurrence_data = []
+    for skill, count in cooccurring:
+        cooccurrence_data.append({
+            'Umiejętność': skill,
+            'Liczba współwystąpień': count
+        })
+    
+    return dash_table.DataTable(
+        data=cooccurrence_data,
+        columns=[
+            {'name': 'Współwystępująca Umiejętność', 'id': 'Umiejętność'},
+            {'name': 'Liczba wystąpień', 'id': 'Liczba współwystąpień'}
+        ],
+        style_cell={
+            'textAlign': 'left',
+            'backgroundColor': '#343a40',
+            'color': 'white',
+            'border': '1px solid rgba(255, 255, 255, 0.2)',
+            'whiteSpace': 'normal',
+            'height': 'auto'
+        },
+        style_header={
+            'backgroundColor': '#6c757d',
+            'color': 'white',
+            'fontWeight': 'bold',
+            'border': '1px solid rgba(255, 255, 255, 0.3)'
+        },
+        style_data={
+            'backgroundColor': '#343a40',
+            'color': 'white'
+        }
+    )
+
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=5000)

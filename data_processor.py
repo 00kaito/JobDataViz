@@ -466,3 +466,35 @@ class DataProcessor:
         except Exception as e:
             print(f"Error in get_top_skills_by_category: {e}")
             return {}
+    
+    def get_cooccurring_skills(self, df, selected_skills):
+        """Get skills that most frequently co-occur with selected skills"""
+        try:
+            if not selected_skills:
+                return []
+            
+            skill_cooccurrences = {}
+            
+            for _, row in df.iterrows():
+                skills = row.get('skills', {})
+                if isinstance(skills, dict):
+                    skill_list = list(skills.keys())
+                    
+                    # Check if any of the selected skills are in this job's skills
+                    has_selected_skill = any(skill in skill_list for skill in selected_skills)
+                    
+                    if has_selected_skill:
+                        # Count co-occurrences for all other skills
+                        for skill in skill_list:
+                            if skill not in selected_skills:
+                                if skill not in skill_cooccurrences:
+                                    skill_cooccurrences[skill] = 0
+                                skill_cooccurrences[skill] += 1
+            
+            # Sort by frequency and return top 5
+            sorted_skills = sorted(skill_cooccurrences.items(), key=lambda x: x[1], reverse=True)[:5]
+            return sorted_skills
+            
+        except Exception as e:
+            print(f"Error in get_cooccurring_skills: {e}")
+            return []
