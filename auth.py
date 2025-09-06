@@ -54,11 +54,11 @@ def create_auth_routes(app):
         return render_template('register.html', form=form)
     
     @app.route('/logout')
-    @login_required
     def logout():
-        flash(f'Do widzenia, {current_user.username}!', 'info')
-        logout_user()
-        return redirect(url_for('login'))
+        if current_user.is_authenticated:
+            flash(f'Do widzenia, {current_user.username}!', 'info')
+            logout_user()
+        return redirect(url_for('index'))
 
 def create_admin_routes(app):
     """Create admin routes"""
