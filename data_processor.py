@@ -97,8 +97,19 @@ class DataProcessor:
                     if '-' in salary_clean:
                         parts = salary_clean.split('-')
                         if len(parts) == 2:
-                            min_sal = float(parts[0].replace(' ', '').replace(',', ''))
-                            max_sal = float(parts[1].replace(' ', '').replace(',', ''))
+                            # Better parsing - handle spaces in thousands
+                            min_str = parts[0].strip().replace(' ', '').replace(',', '')
+                            max_str = parts[1].strip().replace(' ', '').replace(',', '')
+                            
+                            min_sal = float(min_str)
+                            max_sal = float(max_str)
+                            
+                            # Data validation - check if values are reasonable
+                            if min_sal > 1000000 or max_sal > 1000000:  # Above 1M PLN - likely parsing error
+                                # Try alternative parsing - maybe spaces are thousands separators
+                                min_sal = float(parts[0].strip().replace(' ', '').replace(',', '')) / 1000
+                                max_sal = float(parts[1].strip().replace(' ', '').replace(',', '')) / 1000
+                            
                             avg_sal = (min_sal + max_sal) / 2
                             
                             salary_min_list.append(min_sal)
@@ -112,6 +123,11 @@ class DataProcessor:
                         # Single value
                         try:
                             single_val = float(salary_clean.replace(' ', '').replace(',', ''))
+                            
+                            # Data validation for single values
+                            if single_val > 1000000:  # Above 1M PLN - likely parsing error
+                                single_val = single_val / 1000
+                            
                             salary_min_list.append(single_val)
                             salary_max_list.append(single_val)
                             salary_avg_list.append(single_val)
@@ -302,18 +318,21 @@ class DataProcessor:
         if 'company' not in df.columns:
             return {}
         
+        # First parse salary data for the entire dataframe
+        df_with_salary = self._parse_salary_data(df)
+        
         company_stats = {}
         
-        for company in df['company'].dropna().unique():
-            company_df = df[df['company'] == company]
+        for company in df_with_salary['company'].dropna().unique():
+            company_df = df_with_salary[df_with_salary['company'] == company]
             
             # Skills analysis for this company
             skills_counter, _, _ = self.process_skills_data(company_df)
             top_skills = skills_counter.most_common(3)
             
-            # Salary stats
+            # Salary stats - now using parsed salary data
             salary_stats = {}
-            if 'salary_avg' in df.columns:
+            if 'salary_avg' in company_df.columns:
                 company_salaries = company_df['salary_avg'].dropna()
                 if len(company_salaries) > 0:
                     salary_stats = {
@@ -350,12 +369,12 @@ class DataProcessor:
             
             # Get unique skills from limited sample to avoid timeout
             all_skills = set()
-            for skills_dict in skills_data[:100]:  # Limit to first 100 records
+            for skills_dict in skills_data[:200]:  # Limit to first 200 records (increased)
                 if isinstance(skills_dict, dict):
                     all_skills.update(skills_dict.keys())
             
-            # Limit to top 50 most common skills to avoid timeout
-            all_skills = list(all_skills)[:50]
+            # Limit to top 100 most common skills (increased from 50)
+            all_skills = list(all_skills)[:100]
             
             skill_correlations = {}
             
