@@ -101,8 +101,22 @@ class ChartGenerator:
                     {'name': 'Liczba wystąpień', 'id': 'Liczba wystąpień'},
                     {'name': 'Procent ofert', 'id': 'Procent'}
                 ],
-                style_cell={'textAlign': 'left'},
-                style_header={'backgroundColor': 'var(--bs-dark)', 'color': 'white'},
+                style_cell={
+                    'textAlign': 'left',
+                    'backgroundColor': '#343a40',
+                    'color': 'white',
+                    'border': '1px solid rgba(255, 255, 255, 0.2)'
+                },
+                style_header={
+                    'backgroundColor': '#6c757d',
+                    'color': 'white',
+                    'fontWeight': 'bold',
+                    'border': '1px solid rgba(255, 255, 255, 0.3)'
+                },
+                style_data={
+                    'backgroundColor': '#343a40',
+                    'color': 'white'
+                },
                 page_size=10
             )
         else:
@@ -126,8 +140,22 @@ class ChartGenerator:
                 {'name': 'Liczba ofert', 'id': 'Liczba ofert'},
                 {'name': 'Procent ofert', 'id': 'Procent'}
             ],
-            style_cell={'textAlign': 'left'},
-            style_header={'backgroundColor': 'var(--bs-dark)', 'color': 'white'}
+            style_cell={
+                'textAlign': 'left',
+                'backgroundColor': '#343a40',
+                'color': 'white',
+                'border': '1px solid rgba(255, 255, 255, 0.2)'
+            },
+            style_header={
+                'backgroundColor': '#6c757d',
+                'color': 'white',
+                'fontWeight': 'bold',
+                'border': '1px solid rgba(255, 255, 255, 0.3)'
+            },
+            style_data={
+                'backgroundColor': '#343a40',
+                'color': 'white'
+            }
         )
         
         return dbc.Container([
@@ -327,8 +355,23 @@ class ChartGenerator:
                 {'name': 'Średnia pensja', 'id': 'Średnia pensja'},
                 {'name': 'Praca zdalna %', 'id': 'Praca zdalna %'}
             ],
-            style_cell={'textAlign': 'left', 'fontSize': '12px'},
-            style_header={'backgroundColor': 'var(--bs-dark)', 'color': 'white'},
+            style_cell={
+                'textAlign': 'left',
+                'fontSize': '12px',
+                'backgroundColor': '#343a40',
+                'color': 'white',
+                'border': '1px solid rgba(255, 255, 255, 0.2)'
+            },
+            style_header={
+                'backgroundColor': '#6c757d',
+                'color': 'white',
+                'fontWeight': 'bold',
+                'border': '1px solid rgba(255, 255, 255, 0.3)'
+            },
+            style_data={
+                'backgroundColor': '#343a40',
+                'color': 'white'
+            },
             page_size=10
         )
         
@@ -408,8 +451,23 @@ class ChartGenerator:
                 {'name': 'Średnia pensja', 'id': 'Średnia pensja'},
                 {'name': 'Praca zdalna %', 'id': 'Praca zdalna %'}
             ],
-            style_cell={'textAlign': 'left', 'fontSize': '12px'},
-            style_header={'backgroundColor': 'var(--bs-dark)', 'color': 'white'},
+            style_cell={
+                'textAlign': 'left',
+                'fontSize': '12px',
+                'backgroundColor': '#343a40',
+                'color': 'white',
+                'border': '1px solid rgba(255, 255, 255, 0.2)'
+            },
+            style_header={
+                'backgroundColor': '#6c757d',
+                'color': 'white',
+                'fontWeight': 'bold',
+                'border': '1px solid rgba(255, 255, 255, 0.3)'
+            },
+            style_data={
+                'backgroundColor': '#343a40',
+                'color': 'white'
+            },
             page_size=10
         )
         
