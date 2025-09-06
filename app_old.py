@@ -2,59 +2,28 @@ import os
 import json
 import pandas as pd
 import dash
-from dash import dcc, html, Input, Output, State, dash_table
+from dash import dcc, html, Input, Output, State, callback_context, dash_table
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import dash_bootstrap_components as dbc
-from datetime import datetime
+from datetime import datetime, timedelta
 import base64
-import logging
-from flask import Flask, render_template, redirect, url_for, flash
-from flask_login import LoginManager, login_required, current_user
-from werkzeug.middleware.proxy_fix import ProxyFix
-
+import io
 from data_processor import DataProcessor
 from visualizations import ChartGenerator
-from models import db, User
-from auth import create_auth_routes, create_admin_routes
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Create Flask server
-server = Flask(__name__)
-server.config['SECRET_KEY'] = os.environ.get("SESSION_SECRET", 'your-secret-key-change-this')
-server.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
-server.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-server.wsgi_app = ProxyFix(server.wsgi_app, x_proto=1, x_host=1)
-
-# Initialize database
-db.init_app(server)
-
-# Initialize Flask-Login
-login_manager = LoginManager()
-login_manager.init_app(server)
-login_manager.login_view = 'login'
-login_manager.login_message = 'Zaloguj się, aby uzyskać dostęp do tej strony.'
-login_manager.login_message_category = 'info'
-
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# Create auth routes
-create_auth_routes(server)
-create_admin_routes(server)
-
-# Initialize Dash app with Flask server
+# Initialize Dash app
 app = dash.Dash(__name__, 
-                server=server,
                 external_stylesheets=[
                     'https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css',
                     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
                 ],
-                suppress_callback_exceptions=True,
-                url_base_pathname='/dashboard/')
+                suppress_callback_exceptions=True)
 
 app.title = "Dashboard Analizy Ofert Pracy"
 
@@ -62,151 +31,134 @@ app.title = "Dashboard Analizy Ofert Pracy"
 data_processor = DataProcessor()
 chart_generator = ChartGenerator()
 
-def create_protected_layout():
-    """Create dashboard layout for authenticated users"""
-    return dbc.Container([
-        dcc.Store(id='job-data-store'),
-        dcc.Store(id='filtered-data-store'),
-        
-        # Header with user info
-        dbc.Row([
-            dbc.Col([
-                html.H1("📊 Dashboard Analizy Ofert Pracy", className="text-center mb-2"),
-                html.P(f"Witaj, {current_user.username}!", className="text-center text-muted mb-1"),
-                html.P(f"Rola: {current_user.role.title()}", className="text-center text-muted mb-4")
-            ])
-        ]),
-        
-        # Navigation for different roles
-        dbc.Row([
-            dbc.Col([
-                dbc.Nav([
-                    dbc.NavItem(dbc.NavLink("Dashboard", href="/dashboard/", active=True)),
-                    dbc.NavItem(dbc.NavLink("Administracja", href="/admin", disabled=not current_user.can_access_admin())),
-                    dbc.NavItem(dbc.NavLink("Wyloguj", href="/logout"))
-                ], pills=True, className="mb-4")
-            ])
-        ]) if current_user.is_authenticated else html.Div(),
-        
-        # Upload section
-        dbc.Card([
-            dbc.CardBody([
-                html.H4("📁 Wczytaj Dane", className="mb-3"),
-                dcc.Upload(
-                    id='upload-data',
-                    children=html.Div([
-                        html.I(className="fas fa-cloud-upload-alt fa-2x mb-2"),
-                        html.Br(),
-                        'Przeciągnij i upuść pliki JSON lub kliknij, aby wybrać'
-                    ]),
-                    style={
-                        'width': '100%', 'height': '60px', 'lineHeight': '60px',
-                        'borderWidth': '1px', 'borderStyle': 'dashed',
-                        'borderRadius': '5px', 'textAlign': 'center', 'margin': '10px',
-                        'borderColor': '#6c757d'
-                    },
-                    multiple=True
-                ),
-                html.Div(id='upload-status', className="mt-2")
-            ])
-        ], className="mb-4"),
-        
-        # Filters section (only for analysts and admins)
-        html.Div([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H4("🔍 Filtry", className="mb-3"),
-                    dbc.Row([
-                        dbc.Col([
-                            html.Label("Miasta:"),
-                            dcc.Dropdown(id='city-filter', multi=True, placeholder="Wszystkie miasta")
-                        ], md=2),
-                        dbc.Col([
-                            html.Label("Poziom doświadczenia:"),
-                            dcc.Dropdown(id='seniority-filter', multi=True, placeholder="Wszystkie poziomy")
-                        ], md=2),
-                        dbc.Col([
-                            html.Label("Umiejętności:"),
-                            dcc.Dropdown(id='skills-filter', multi=True, placeholder="Wszystkie umiejętności")
-                        ], md=2),
-                        dbc.Col([
-                            html.Label("Firmy:"),
-                            dcc.Dropdown(id='company-filter', multi=True, placeholder="Wszystkie firmy")
-                        ], md=2),
-                        dbc.Col([
-                            html.Label("Praca zdalna:"),
-                            dcc.Dropdown(
-                                id='remote-filter', 
-                                options=[{'label': 'Tak', 'value': True}, {'label': 'Nie', 'value': False}],
-                                multi=True, 
-                                placeholder="Wszystkie"
-                            )
-                        ], md=2),
-                        dbc.Col([
-                            html.Label("Kategoria:"),
-                            dcc.Dropdown(id='category-filter', multi=True, placeholder="Wszystkie kategorie")
-                        ], md=2)
-                    ]),
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Button("Resetuj filtry", id="reset-filters", color="secondary", className="mt-3")
-                        ])
-                    ])
-                ])
-            ], className="mb-4")
-        ], style={'display': 'block' if current_user.is_authenticated and current_user.can_access_advanced() else 'none'}),
-        
-        # Summary stats
-        dbc.Row([
-            dbc.Col([
-                html.Div(id='summary-stats')
-            ])
-        ], className="mb-4"),
-        
-        # Main content tabs with role-based access
-        create_tabs_based_on_role(),
-        
-        html.Div(id='tab-content', className="mt-4")
-    ])
-
-def create_tabs_based_on_role():
-    """Create tabs based on user role"""
-    if not current_user.is_authenticated:
-        return html.Div()
+# App layout
+app.layout = dbc.Container([
+    dcc.Store(id='job-data-store'),
+    dcc.Store(id='filtered-data-store'),
     
-    base_tabs = [
-        dbc.Tab(label="📊 Analiza Umiejętności", tab_id="skills-tab"),
-        dbc.Tab(label="👤 Analiza Doświadczenia", tab_id="experience-tab"),
-        dbc.Tab(label="📍 Analiza Lokalizacji", tab_id="location-tab"),
-        dbc.Tab(label="🏢 Analiza Firm", tab_id="company-tab")
-    ]
-    
-    if current_user.can_access_advanced():
-        base_tabs.extend([
-            dbc.Tab(label="📈 Trendy Czasowe", tab_id="trends-tab"),
-            dbc.Tab(label="💰 Analiza Wynagrodzeń", tab_id="salary-tab"),
-            dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab")
+    # Header
+    dbc.Row([
+        dbc.Col([
+            html.H1("📊 Dashboard Analizy Ofert Pracy", className="text-center mb-4"),
+            html.P("Kompleksowa analiza rynku pracy z interaktywnymi wizualizacjami", 
+                   className="text-center text-muted mb-4")
         ])
+    ]),
     
-    return dbc.Tabs(id="main-tabs", active_tab="skills-tab", children=base_tabs)
-
-# Set layout
-app.layout = create_protected_layout
-
-# Flask routes
-@server.route('/')
-def index():
-    if current_user.is_authenticated:
-        return redirect('/dashboard/')
-    return redirect('/login')
-
-@server.route('/dashboard/')
-@login_required
-def dashboard():
-    # This will be handled by Dash
-    return app.index()
-
-# All the existing Dash callbacks remain the same but we need to add authentication checks
+    # Upload section
+    dbc.Card([
+        dbc.CardBody([
+            html.H4("📁 Wczytaj Dane", className="mb-3"),
+            dcc.Upload(
+                id='upload-data',
+                children=html.Div([
+                    html.I(className="fas fa-cloud-upload-alt fa-2x mb-2"),
+                    html.Br(),
+                    'Przeciągnij i upuść pliki JSON lub ',
+                    html.A('wybierz pliki', className="text-primary")
+                ]),
+                style={
+                    'width': '100%',
+                    'height': '100px',
+                    'lineHeight': '100px',
+                    'borderWidth': '2px',
+                    'borderStyle': 'dashed',
+                    'borderRadius': '10px',
+                    'textAlign': 'center',
+                    'margin': '10px',
+                    'cursor': 'pointer'
+                },
+                multiple=True,
+                className="border-secondary"
+            ),
+            html.Div(id='upload-status', className="mt-3")
+        ])
+    ], className="mb-4"),
+    
+    # Filters section
+    dbc.Card([
+        dbc.CardBody([
+            html.H4("🔍 Filtry", className="mb-3"),
+            dbc.Row([
+                dbc.Col([
+                    html.Label("Miasto:", className="form-label"),
+                    dcc.Dropdown(id='city-filter', multi=True, placeholder="Wybierz miasta...")
+                ], md=3),
+                dbc.Col([
+                    html.Label("Poziom doświadczenia:", className="form-label"),
+                    dcc.Dropdown(id='seniority-filter', multi=True, placeholder="Wybierz poziomy...")
+                ], md=3),
+                dbc.Col([
+                    html.Label("Umiejętności:", className="form-label"),
+                    dcc.Dropdown(id='skills-filter', multi=True, placeholder="Wybierz umiejętności...")
+                ], md=3),
+                dbc.Col([
+                    html.Label("Firma:", className="form-label"),
+                    dcc.Dropdown(id='company-filter', multi=True, placeholder="Wybierz firmy...")
+                ], md=3)
+            ], className="mb-3"),
+            dbc.Row([
+                dbc.Col([
+                    html.Label("Typ pracy:", className="form-label"),
+                    dcc.Dropdown(
+                        id='remote-filter',
+                        options=[
+                            {'label': 'Zdalna', 'value': True},
+                            {'label': 'Stacjonarna/Hybrydowa', 'value': False}
+                        ],
+                        multi=True,
+                        placeholder="Wybierz typ pracy..."
+                    )
+                ], md=3),
+                dbc.Col([
+                    html.Label("Kategoria:", className="form-label"),
+                    dcc.Dropdown(id='category-filter', multi=True, placeholder="Wybierz kategorie...")
+                ], md=3),
+                dbc.Col([
+                    dbc.Button("🔄 Resetuj filtry", id="reset-filters", color="secondary", className="mt-4")
+                ], md=3)
+            ])
+        ])
+    ], className="mb-4"),
+    
+    # Summary statistics
+    html.Div(id='summary-stats', className="mb-4"),
+    
+    # Main content tabs
+    dbc.Tabs([
+        dbc.Tab(label="🎯 Analiza Umiejętności", tab_id="skills-tab"),
+        dbc.Tab(label="📊 Poziomy Doświadczenia", tab_id="experience-tab"),
+        dbc.Tab(label="🌍 Analiza Lokalizacji", tab_id="location-tab"),
+        dbc.Tab(label="🏢 Analiza Firm", tab_id="company-tab"),
+        dbc.Tab(label="📈 Trendy Rynkowe", tab_id="trends-tab"),
+        dbc.Tab(label="💰 Analiza Wynagrodzeń", tab_id="salary-tab"),
+        dbc.Tab(label="🔍 Szczegółowa Analiza", tab_id="detailed-tab")
+    ], id="main-tabs", active_tab="skills-tab"),
+    
+    # Tab content with loading
+    dcc.Loading(
+        id="loading",
+        type="dot",
+        children=html.Div(id='tab-content', className="mt-4"),
+        color="#0d6efd",
+        style={'margin-top': '20px'},
+        overlay_style={"visibility": "visible", "opacity": .7, "backgroundColor": "rgba(0,0,0,0.1)"},
+        custom_spinner=html.Div([
+            html.Div([
+                html.I(className="fas fa-chart-bar fa-3x text-primary mb-3"),
+                html.Br(),
+                html.H5("Ładowanie analizy danych...", className="text-primary fw-bold mb-2"),
+                html.P("To może potrwać kilka sekund", className="text-muted mb-0")
+            ], className="text-center p-4 shadow-sm", style={
+                'backgroundColor': 'rgba(255,255,255,0.98)', 
+                'border': '2px solid #0d6efd', 
+                'border-radius': '12px',
+                'min-width': '300px'
+            })
+        ], style={'display': 'flex', 'justify-content': 'center', 'align-items': 'center', 'min-height': '200px'})
+    )
+    
+], fluid=True)
 
 # Callback for file upload
 @app.callback(
@@ -217,9 +169,6 @@ def dashboard():
      State('job-data-store', 'data')]
 )
 def update_data(list_of_contents, list_of_names, existing_data):
-    if not current_user.is_authenticated:
-        return None, dbc.Alert("Musisz być zalogowany", color="danger")
-        
     if list_of_contents is None:
         if existing_data is None:
             return None, dbc.Alert("Brak wczytanych danych", color="warning")
@@ -264,9 +213,6 @@ def update_data(list_of_contents, list_of_names, existing_data):
     [Input('job-data-store', 'data')]
 )
 def update_filter_options(data):
-    if not current_user.is_authenticated or not current_user.can_access_advanced():
-        return [], [], [], [], []
-        
     if not data:
         return [], [], [], [], []
     
@@ -309,33 +255,29 @@ def update_filter_options(data):
      Input('category-filter', 'value')]
 )
 def filter_data(data, cities, seniority, skills, companies, remote, categories):
-    if not current_user.is_authenticated:
-        return []
-        
     if not data:
         return []
     
     df = pd.DataFrame(data)
     
-    # Apply filters (only if user has advanced access)
-    if current_user.can_access_advanced():
-        if cities:
-            df = df[df['city'].isin(cities)]
-        if seniority:
-            df = df[df['seniority'].isin(seniority)]
-        if companies:
-            df = df[df['company'].isin(companies)]
-        if remote is not None:
-            df = df[df['remote'].isin(remote)]
-        if categories:
-            df = df[df['category'].isin(categories)]
-        if skills:
-            # Filter by skills - job must have at least one of the selected skills
-            def has_required_skills(job_skills):
-                if not isinstance(job_skills, dict):
-                    return False
-                return any(skill in job_skills for skill in skills)
-            df = df[df['skills'].apply(has_required_skills)]
+    # Apply filters
+    if cities:
+        df = df[df['city'].isin(cities)]
+    if seniority:
+        df = df[df['seniority'].isin(seniority)]
+    if companies:
+        df = df[df['company'].isin(companies)]
+    if remote is not None:
+        df = df[df['remote'].isin(remote)]
+    if categories:
+        df = df[df['category'].isin(categories)]
+    if skills:
+        # Filter by skills - job must have at least one of the selected skills
+        def has_required_skills(job_skills):
+            if not isinstance(job_skills, dict):
+                return False
+            return any(skill in job_skills for skill in skills)
+        df = df[df['skills'].apply(has_required_skills)]
     
     return df.to_dict('records')
 
@@ -350,22 +292,16 @@ def filter_data(data, cities, seniority, skills, companies, remote, categories):
     [Input('reset-filters', 'n_clicks')]
 )
 def reset_filters(n_clicks):
-    if not current_user.is_authenticated or not current_user.can_access_advanced():
-        return None, None, None, None, None, None
-        
     if n_clicks:
         return None, None, None, None, None, None
     return dash.no_update
 
-# Callback for summary stats
+# Callback for summary statistics
 @app.callback(
     Output('summary-stats', 'children'),
     [Input('filtered-data-store', 'data')]
 )
 def update_summary_stats(data):
-    if not current_user.is_authenticated:
-        return dbc.Alert("Musisz być zalogowany", color="danger")
-        
     if not data:
         return dbc.Alert("Brak danych do wyświetlenia", color="info")
     
@@ -384,6 +320,14 @@ def update_summary_stats(data):
             if isinstance(row.get('skills'), dict):
                 skills_counts.append(len(row['skills']))
         avg_skills = sum(skills_counts) / len(skills_counts) if skills_counts else 0
+    
+    # Salary statistics
+    salary_info = ""
+    if 'salary_avg' in df.columns:
+        salary_df = df[df['salary_avg'].notna()]
+        if not salary_df.empty:
+            avg_salary = salary_df['salary_avg'].mean()
+            salary_info = f" | Średnie wynagrodzenie: {avg_salary:,.0f} PLN"
     
     return dbc.Row([
         dbc.Col([
@@ -428,24 +372,17 @@ def update_summary_stats(data):
         ], md=2)
     ])
 
-# Callback for tab content with role-based access
+# Callback for tab content
 @app.callback(
     Output('tab-content', 'children'),
     [Input('main-tabs', 'active_tab'),
      Input('filtered-data-store', 'data')]
 )
 def update_tab_content(active_tab, data):
-    if not current_user.is_authenticated:
-        return dbc.Alert("Musisz być zalogowany aby uzyskać dostęp", color="danger")
-        
     if not data:
         return dbc.Alert("Brak danych do wyświetlenia. Wczytaj pliki JSON z ofertami pracy.", color="info")
     
     df = pd.DataFrame(data)
-    
-    # Check permissions for advanced tabs
-    if active_tab in ["trends-tab", "salary-tab", "detailed-tab"] and not current_user.can_access_advanced():
-        return dbc.Alert(f"Brak uprawnień do tej sekcji. Wymagana rola: analyst lub admin. Twoja rola: {current_user.role}", color="warning")
     
     if active_tab == "skills-tab":
         return chart_generator.create_skills_analysis(df)
@@ -471,9 +408,6 @@ def update_tab_content(active_tab, data):
      Input('filtered-data-store', 'data')]
 )
 def update_detailed_skill_analysis(selected_skill, data):
-    if not current_user.is_authenticated or not current_user.can_access_advanced():
-        return dbc.Alert("Brak uprawnień do tej funkcji", color="warning")
-        
     if not selected_skill or not data:
         return dbc.Alert("Wybierz umiejętność aby zobaczyć szczegółową analizę", color="info")
     
@@ -487,9 +421,6 @@ def update_detailed_skill_analysis(selected_skill, data):
      Input('filtered-data-store', 'data')]
 )
 def update_cooccurrence_results(selected_skills, data):
-    if not current_user.is_authenticated:
-        return html.P("Musisz być zalogowany", style={'color': 'white', 'textAlign': 'center', 'padding': '20px'})
-        
     if not selected_skills or not data:
         return html.P("Wybierz umiejętności, aby zobaczyć najczęściej współwystępujące z nimi.", 
                      style={'color': 'white', 'textAlign': 'center', 'padding': '20px'})
@@ -499,6 +430,7 @@ def update_cooccurrence_results(selected_skills, data):
         selected_skills = selected_skills[:3]
     
     df = pd.DataFrame(data)
+    data_processor = DataProcessor()
     cooccurring = data_processor.get_cooccurring_skills(df, selected_skills)
     
     if not cooccurring:
@@ -539,9 +471,5 @@ def update_cooccurrence_results(selected_skills, data):
         }
     )
 
-# Create database tables
-with server.app_context():
-    db.create_all()
-
 if __name__ == '__main__':
-    server.run(debug=True, host='0.0.0.0', port=5000)
+    app.run_server(debug=True, host='0.0.0.0', port=5000)
