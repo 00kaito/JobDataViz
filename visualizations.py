@@ -527,13 +527,20 @@ class ChartGenerator:
     
     def create_salary_analysis(self, df):
         """Create salary analysis tab content"""
-        if 'salary_avg' not in df.columns:
-            return dbc.Alert("Brak danych o wynagrodzeniach", color="warning")
+        # Check if we have any salary data (either parsed or string format)
+        has_salary_data = ('salary_avg' in df.columns and df['salary_avg'].notna().any()) or \
+                         ('salary' in df.columns and df['salary'].notna().any())
+        
+        if not has_salary_data:
+            return dbc.Alert("Brak danych o wynagrodzeniach w kolumnach 'salary' lub 'salary_avg'", color="warning")
         
         salary_df = self.data_processor.process_salary_data(df)
         
         if salary_df.empty:
-            return dbc.Alert("Brak poprawnych danych o wynagrodzeniach", color="warning")
+            # Try to debug what's happening
+            parsed_df = self.data_processor._parse_salary_data(df)
+            salary_count = parsed_df['salary_avg'].notna().sum() if 'salary_avg' in parsed_df.columns else 0
+            return dbc.Alert(f"Brak poprawnych danych o wynagrodzeniach po parsowaniu. Znaleziono {salary_count} zapisów z wynagrodzeniami.", color="warning")
         
         skill_salary_stats = self.data_processor.get_salary_by_skill(df)
         correlation_matrix = self.data_processor.calculate_correlation_matrix(df)
