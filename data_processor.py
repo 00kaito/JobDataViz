@@ -119,7 +119,8 @@ class DataProcessor:
             return pd.DataFrame()
         
         df_time = df.copy()
-        df_time['published_date'] = pd.to_datetime(df_time['published_date'])
+        df_time['published_date'] = pd.to_datetime(df_time['published_date'], errors='coerce', dayfirst=True)
+        df_time = df_time.dropna(subset=['published_date'])
         df_time['date'] = df_time['published_date'].dt.date
         
         # Group by date
@@ -138,7 +139,8 @@ class DataProcessor:
         top_skill_names = [skill for skill, _ in skills_counter.most_common(top_skills)]
         
         df_time = df.copy()
-        df_time['published_date'] = pd.to_datetime(df_time['published_date'])
+        df_time['published_date'] = pd.to_datetime(df_time['published_date'], errors='coerce', dayfirst=True)
+        df_time = df_time.dropna(subset=['published_date'])
         df_time['date'] = df_time['published_date'].dt.date
         
         skill_trends = {}

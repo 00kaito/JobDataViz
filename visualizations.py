@@ -180,11 +180,16 @@ class ChartGenerator:
         
         # Seniority distribution
         seniority_counts = df['seniority'].value_counts()
+        seniority_df = pd.DataFrame({
+            'Poziom': seniority_counts.index,
+            'Liczba': seniority_counts.values
+        })
         fig_seniority = px.bar(
-            x=seniority_counts.index,
-            y=seniority_counts.values,
+            seniority_df,
+            x='Poziom',
+            y='Liczba',
             title='Rozkład Poziomów Doświadczenia',
-            labels={'x': 'Poziom doświadczenia', 'y': 'Liczba ofert'}
+            labels={'Poziom': 'Poziom doświadczenia', 'Liczba': 'Liczba ofert'}
         )
         
         # Skills vs experience heatmap
