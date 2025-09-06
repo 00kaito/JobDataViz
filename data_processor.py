@@ -200,32 +200,36 @@ class DataProcessor:
         skills_counter, _, _ = self.process_skills_data(df)
         top_skill_names = [skill for skill, _ in skills_counter.most_common(top_skills)]
         
+        if not top_skill_names:
+            return pd.DataFrame()
+        
         df_time = df.copy()
         df_time['published_date'] = pd.to_datetime(df_time['published_date'], errors='coerce', dayfirst=True)
         df_time = df_time.dropna(subset=['published_date'])
         df_time['date'] = df_time['published_date'].dt.date
         
-        skill_trends = {}
+        result_df = None
         
         for skill in top_skill_names:
             skill_df = df_time[df_time['skills'].apply(
                 lambda x: isinstance(x, dict) and skill in x
             )]
             
-            daily_counts = skill_df.groupby('date').size().reset_index(name=skill)
-            daily_counts['date'] = pd.to_datetime(daily_counts['date'])
-            
-            if not isinstance(skill_trends, dict) or skill_trends:
-                if isinstance(skill_trends, pd.DataFrame) and not skill_trends.empty:
-                    skill_trends = skill_trends.merge(daily_counts, on='date', how='outer')
+            if not skill_df.empty:
+                daily_counts = skill_df.groupby('date').size().reset_index(name=skill)
+                daily_counts['date'] = pd.to_datetime(daily_counts['date'])
+                
+                if result_df is None:
+                    result_df = daily_counts
                 else:
-                    skill_trends = daily_counts
+                    result_df = result_df.merge(daily_counts, on='date', how='outer')
         
-        if not skill_trends.empty:
-            skill_trends = skill_trends.fillna(0)
-            skill_trends = skill_trends.sort_values('date')
+        if result_df is not None and not result_df.empty:
+            result_df = result_df.fillna(0)
+            result_df = result_df.sort_values('date')
+            return result_df
         
-        return skill_trends
+        return pd.DataFrame()
     
     def calculate_correlation_matrix(self, df):
         """Calculate correlation matrix for salary analysis"""
