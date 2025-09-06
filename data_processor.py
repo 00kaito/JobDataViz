@@ -97,24 +97,19 @@ class DataProcessor:
                     if '-' in salary_clean:
                         parts = salary_clean.split('-')
                         if len(parts) == 2:
-                            # Better parsing - handle spaces in thousands
-                            min_str = parts[0].strip().replace(' ', '').replace(',', '')
-                            max_str = parts[1].strip().replace(' ', '').replace(',', '')
-                            
-                            min_sal = float(min_str)
-                            max_sal = float(max_str)
-                            
-                            # Data validation - check if values are reasonable
-                            if min_sal > 1000000 or max_sal > 1000000:  # Above 1M PLN - likely parsing error
-                                # Try alternative parsing - maybe spaces are thousands separators
-                                min_sal = float(parts[0].strip().replace(' ', '').replace(',', '')) / 1000
-                                max_sal = float(parts[1].strip().replace(' ', '').replace(',', '')) / 1000
-                            
+                            min_sal = float(parts[0].replace(' ', '').replace(',', ''))
+                            max_sal = float(parts[1].replace(' ', '').replace(',', ''))
                             avg_sal = (min_sal + max_sal) / 2
                             
-                            salary_min_list.append(min_sal)
-                            salary_max_list.append(max_sal)
-                            salary_avg_list.append(avg_sal)
+                            # Filter out unrealistic salary values (below 4k or above 60k PLN)
+                            if 4000 <= avg_sal <= 60000:
+                                salary_min_list.append(min_sal)
+                                salary_max_list.append(max_sal)
+                                salary_avg_list.append(avg_sal)
+                            else:
+                                salary_min_list.append(None)
+                                salary_max_list.append(None)
+                                salary_avg_list.append(None)
                         else:
                             salary_min_list.append(None)
                             salary_max_list.append(None)
@@ -124,13 +119,15 @@ class DataProcessor:
                         try:
                             single_val = float(salary_clean.replace(' ', '').replace(',', ''))
                             
-                            # Data validation for single values
-                            if single_val > 1000000:  # Above 1M PLN - likely parsing error
-                                single_val = single_val / 1000
-                            
-                            salary_min_list.append(single_val)
-                            salary_max_list.append(single_val)
-                            salary_avg_list.append(single_val)
+                            # Filter out unrealistic salary values (below 4k or above 60k PLN)
+                            if 4000 <= single_val <= 60000:
+                                salary_min_list.append(single_val)
+                                salary_max_list.append(single_val)
+                                salary_avg_list.append(single_val)
+                            else:
+                                salary_min_list.append(None)
+                                salary_max_list.append(None)
+                                salary_avg_list.append(None)
                         except:
                             salary_min_list.append(None)
                             salary_max_list.append(None)
