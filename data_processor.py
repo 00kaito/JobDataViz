@@ -72,9 +72,74 @@ class DataProcessor:
         
         return combinations.most_common(top_n)
     
+    def _parse_salary_data(self, df):
+        """Parse salary data from string format like '11 000 - 16 000 PLN'"""
+        df_copy = df.copy()
+        
+        # Parse salary string into min, max, avg
+        salary_min_list = []
+        salary_max_list = []
+        salary_avg_list = []
+        
+        for _, row in df_copy.iterrows():
+            salary_str = row.get('salary', '')
+            salary_min = row.get('salary_min', None)
+            salary_max = row.get('salary_max', None)
+            salary_avg = row.get('salary_avg', None)
+            
+            # Try to parse from string if numeric values are not available
+            if pd.isna(salary_avg) and salary_str and isinstance(salary_str, str):
+                try:
+                    # Remove 'PLN' and other text
+                    salary_clean = salary_str.replace('PLN', '').replace('zł', '').strip()
+                    
+                    # Handle range format like "11 000 - 16 000"
+                    if '-' in salary_clean:
+                        parts = salary_clean.split('-')
+                        if len(parts) == 2:
+                            min_sal = float(parts[0].replace(' ', '').replace(',', ''))
+                            max_sal = float(parts[1].replace(' ', '').replace(',', ''))
+                            avg_sal = (min_sal + max_sal) / 2
+                            
+                            salary_min_list.append(min_sal)
+                            salary_max_list.append(max_sal)
+                            salary_avg_list.append(avg_sal)
+                        else:
+                            salary_min_list.append(None)
+                            salary_max_list.append(None)
+                            salary_avg_list.append(None)
+                    else:
+                        # Single value
+                        try:
+                            single_val = float(salary_clean.replace(' ', '').replace(',', ''))
+                            salary_min_list.append(single_val)
+                            salary_max_list.append(single_val)
+                            salary_avg_list.append(single_val)
+                        except:
+                            salary_min_list.append(None)
+                            salary_max_list.append(None)
+                            salary_avg_list.append(None)
+                except:
+                    salary_min_list.append(None)
+                    salary_max_list.append(None)
+                    salary_avg_list.append(None)
+            else:
+                # Use existing values
+                salary_min_list.append(salary_min)
+                salary_max_list.append(salary_max)
+                salary_avg_list.append(salary_avg)
+        
+        # Update dataframe
+        df_copy['salary_min'] = salary_min_list
+        df_copy['salary_max'] = salary_max_list
+        df_copy['salary_avg'] = salary_avg_list
+        
+        return df_copy
+    
     def process_salary_data(self, df):
         """Process salary data for analysis"""
-        salary_df = df.copy()
+        # First parse salary strings
+        salary_df = self._parse_salary_data(df)
         
         # Clean salary data
         if 'salary_avg' in salary_df.columns:
@@ -85,9 +150,6 @@ class DataProcessor:
     
     def get_salary_by_skill(self, df):
         """Calculate average salary by skill"""
-        if 'salary_avg' not in df.columns:
-            return {}
-        
         skill_salaries = {}
         salary_df = self.process_salary_data(df)
         
@@ -153,10 +215,11 @@ class DataProcessor:
             daily_counts = skill_df.groupby('date').size().reset_index(name=skill)
             daily_counts['date'] = pd.to_datetime(daily_counts['date'])
             
-            if skill_trends:
-                skill_trends = skill_trends.merge(daily_counts, on='date', how='outer')
-            else:
-                skill_trends = daily_counts
+            if not isinstance(skill_trends, dict) or skill_trends:
+                if isinstance(skill_trends, pd.DataFrame) and not skill_trends.empty:
+                    skill_trends = skill_trends.merge(daily_counts, on='date', how='outer')
+                else:
+                    skill_trends = daily_counts
         
         if not skill_trends.empty:
             skill_trends = skill_trends.fillna(0)
@@ -169,8 +232,21 @@ class DataProcessor:
         if 'salary_avg' not in df.columns:
             return pd.DataFrame()
         
+        # Parse salary data first
+        df_with_parsed_salary = self._parse_salary_data(df)
+        
+        # Calculate skills count
+        skills_counts = []
+        for _, row in df_with_parsed_salary.iterrows():
+            if isinstance(row.get('skills'), dict):
+                skills_counts.append(len(row['skills']))
+            else:
+                skills_counts.append(0)
+        
+        df_with_parsed_salary['skillsCount'] = skills_counts
+        
         # Prepare data for correlation
-        corr_data = df[['salary_avg', 'skillsCount']].copy()
+        corr_data = df_with_parsed_salary[['salary_avg', 'skillsCount']].copy()
         corr_data = corr_data.dropna()
         
         # Add categorical variables as dummies

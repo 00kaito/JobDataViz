@@ -12,6 +12,14 @@ class ChartGenerator:
         self.data_processor = DataProcessor()
         self.color_palette = px.colors.qualitative.Set3
     
+    def _calculate_avg_skills(self, df):
+        """Calculate average number of skills per job"""
+        skills_counts = []
+        for _, row in df.iterrows():
+            if isinstance(row.get('skills'), dict):
+                skills_counts.append(len(row['skills']))
+        return sum(skills_counts) / len(skills_counts) if skills_counts else 0
+    
     def create_skills_analysis(self, df):
         """Create skills analysis tab content"""
         skills_counter, skills_levels, skills_by_seniority = self.data_processor.process_skills_data(df)
@@ -240,7 +248,7 @@ class ChartGenerator:
                             html.H4("📈 Statystyki Poziomów"),
                             html.Div([
                                 html.P(f"Najwięcej ofert: {seniority_counts.index[0]} ({seniority_counts.iloc[0]} ofert)"),
-                                html.P(f"Średnio umiejętności na ofertę: {df['skillsCount'].mean():.1f}"),
+                                html.P(f"Średnio umiejętności na ofertę: {self._calculate_avg_skills(df):.1f}"),
                                 html.P(f"Całkowita liczba poziomów: {len(seniority_counts)}")
                             ])
                         ])
@@ -734,21 +742,60 @@ class ChartGenerator:
         top_companies = skill_jobs['company'].value_counts().head(10)
         top_cities = skill_jobs['city'].value_counts().head(10)
         
-        # Salary analysis if available
+        # Enhanced salary analysis
         salary_info = ""
         salary_chart = go.Figure()
-        if 'salary_avg' in skill_jobs.columns:
-            skill_salaries = skill_jobs['salary_avg'].dropna()
+        salary_by_seniority = {}
+        salary_stats_card = html.Div()
+        
+        # Parse salary data using data processor
+        skill_jobs_parsed = self.data_processor._parse_salary_data(skill_jobs)
+        
+        if 'salary_avg' in skill_jobs_parsed.columns:
+            skill_salaries = skill_jobs_parsed['salary_avg'].dropna()
             if len(skill_salaries) > 0:
+                # Comprehensive salary statistics
                 avg_salary = skill_salaries.mean()
                 median_salary = skill_salaries.median()
+                min_salary = skill_salaries.min()
+                max_salary = skill_salaries.max()
+                std_salary = skill_salaries.std()
+                count_salary = len(skill_salaries)
+                
                 salary_info = f"Średnia: {avg_salary:,.0f} PLN | Mediana: {median_salary:,.0f} PLN"
+                
+                # Salary by seniority
+                if 'seniority' in skill_jobs_parsed.columns:
+                    for seniority in skill_jobs_parsed['seniority'].dropna().unique():
+                        seniority_salaries = skill_jobs_parsed[
+                            skill_jobs_parsed['seniority'] == seniority
+                        ]['salary_avg'].dropna()
+                        
+                        if len(seniority_salaries) >= 2:  # Minimum sample size
+                            salary_by_seniority[seniority] = {
+                                'mean': seniority_salaries.mean(),
+                                'count': len(seniority_salaries)
+                            }
+                
+                # Detailed salary statistics card
+                salary_stats_card = dbc.Card([
+                    dbc.CardBody([
+                        html.H5("📊 Szczegółowe Statystyki Wynagrodzeń"),
+                        html.P(f"📈 Średnia: {avg_salary:,.0f} PLN"),
+                        html.P(f"📊 Mediana: {median_salary:,.0f} PLN"),
+                        html.P(f"⬇️ Minimum: {min_salary:,.0f} PLN"),
+                        html.P(f"⬆️ Maksimum: {max_salary:,.0f} PLN"),
+                        html.P(f"📏 Odchylenie standardowe: {std_salary:,.0f} PLN"),
+                        html.P(f"🔢 Liczba ofert z wynagrodzeniem: {count_salary}")
+                    ])
+                ], className="mb-3")
                 
                 # Salary histogram
                 salary_chart = px.histogram(
                     skill_salaries,
                     title=f'Rozkład Wynagrodzeń dla {skill}',
-                    labels={'value': 'Wynagrodzenie (PLN)', 'count': 'Liczba ofert'}
+                    labels={'value': 'Wynagrodzenie (PLN)', 'count': 'Liczba ofert'},
+                    nbins=min(20, len(skill_salaries)//2) if len(skill_salaries) > 10 else 5
                 )
         
         return dbc.Container([
@@ -787,17 +834,36 @@ class ChartGenerator:
                 ], md=6)
             ], className="mb-4"),
             
-            # Salary analysis
+            # Enhanced salary analysis
+            dbc.Row([
+                dbc.Col([
+                    salary_stats_card
+                ], md=4),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("💰 Rozkład Wynagrodzeń"),
+                            dcc.Graph(figure=salary_chart) if salary_info else html.P("Brak danych o wynagrodzeniach dla tej umiejętności")
+                        ])
+                    ])
+                ], md=8)
+            ], className="mb-4") if salary_info else [],
+            
+            # Salary by seniority
             dbc.Row([
                 dbc.Col([
                     dbc.Card([
                         dbc.CardBody([
-                            html.H4("💰 Analiza Wynagrodzeń"),
-                            dcc.Graph(figure=salary_chart) if salary_info else html.P("Brak danych o wynagrodzeniach dla tej umiejętności")
+                            html.H4("👔 Wynagrodzenia według Poziomu Seniority"),
+                            html.Div([
+                                html.P(f"{seniority}: {stats['mean']:,.0f} PLN (średnia z {stats['count']} ofert)")
+                                for seniority, stats in sorted(salary_by_seniority.items(), 
+                                                             key=lambda x: x[1]['mean'], reverse=True)
+                            ] if salary_by_seniority else [html.P("Brak wystarczających danych dla analizy według seniority")])
                         ])
                     ])
                 ], md=12)
-            ], className="mb-4") if salary_info else [],
+            ], className="mb-4") if salary_by_seniority else [],
             
             # Top lists
             dbc.Row([

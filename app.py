@@ -18,10 +18,12 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Initialize Dash app
-app = dash.Dash(__name__, external_stylesheets=[
-    'https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
-])
+app = dash.Dash(__name__, 
+                external_stylesheets=[
+                    'https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css',
+                    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
+                ],
+                suppress_callback_exceptions=True)
 
 app.title = "Dashboard Analizy Ofert Pracy"
 
@@ -290,7 +292,14 @@ def update_summary_stats(data):
     unique_companies = df['company'].nunique()
     unique_cities = df['city'].nunique()
     remote_jobs = df['remote'].sum() if 'remote' in df.columns else 0
-    avg_skills = df['skillsCount'].mean() if 'skillsCount' in df.columns else 0
+    # Calculate average skills count
+    avg_skills = 0
+    if not df.empty:
+        skills_counts = []
+        for _, row in df.iterrows():
+            if isinstance(row.get('skills'), dict):
+                skills_counts.append(len(row['skills']))
+        avg_skills = sum(skills_counts) / len(skills_counts) if skills_counts else 0
     
     # Salary statistics
     salary_info = ""
