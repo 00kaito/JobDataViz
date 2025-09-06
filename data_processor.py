@@ -434,3 +434,35 @@ class DataProcessor:
         except Exception as e:
             print(f"Error in get_skills_by_category: {e}")
             return {}, {}
+    
+    def get_top_skills_by_category(self, df):
+        """Get top 3 skills for each category"""
+        try:
+            category_skills = {}
+            
+            for _, row in df.iterrows():
+                skills = row.get('skills', {})
+                category = row.get('category', 'Nieokreślona')
+                
+                if isinstance(skills, dict):
+                    if category not in category_skills:
+                        category_skills[category] = {}
+                    
+                    for skill in skills.keys():
+                        if skill not in category_skills[category]:
+                            category_skills[category][skill] = 0
+                        category_skills[category][skill] += 1
+            
+            # Get top 3 skills for each category
+            top_skills_by_category = {}
+            for category, skills in category_skills.items():
+                if skills:
+                    # Sort skills by count and get top 3
+                    sorted_skills = sorted(skills.items(), key=lambda x: x[1], reverse=True)[:3]
+                    top_skills_by_category[category] = sorted_skills
+            
+            return top_skills_by_category
+            
+        except Exception as e:
+            print(f"Error in get_top_skills_by_category: {e}")
+            return {}

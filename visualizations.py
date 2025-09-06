@@ -25,6 +25,7 @@ class ChartGenerator:
         skills_counter, skills_levels, skills_by_seniority = self.data_processor.process_skills_data(df)
         skill_weights = self.data_processor.calculate_skill_weights(skills_levels)
         skill_combinations = self.data_processor.get_skill_combinations(df)
+        top_skills_by_category = self.data_processor.get_top_skills_by_category(df)
         
         # Top 20 skills bar chart
         top_skills = skills_counter.most_common(20)
@@ -158,6 +159,54 @@ class ChartGenerator:
             }
         )
         
+        # Top skills by category table
+        category_skills_table = html.Div()
+        if top_skills_by_category:
+            category_data = []
+            for category, skills in top_skills_by_category.items():
+                top_3_skills = []
+                for skill, count in skills:
+                    top_3_skills.append(f"{skill} ({count})")
+                
+                category_data.append({
+                    'Kategoria': category,
+                    'Top 3 Umiejętności': ' • '.join(top_3_skills)
+                })
+            
+            category_skills_table = dash_table.DataTable(
+                data=category_data,
+                columns=[
+                    {'name': 'Kategoria', 'id': 'Kategoria'},
+                    {'name': 'Top 3 Umiejętności', 'id': 'Top 3 Umiejętności'}
+                ],
+                style_cell={
+                    'textAlign': 'left',
+                    'backgroundColor': '#343a40',
+                    'color': 'white',
+                    'border': '1px solid rgba(255, 255, 255, 0.2)',
+                    'whiteSpace': 'normal',
+                    'height': 'auto'
+                },
+                style_header={
+                    'backgroundColor': '#6c757d',
+                    'color': 'white',
+                    'fontWeight': 'bold',
+                    'border': '1px solid rgba(255, 255, 255, 0.3)'
+                },
+                style_data={
+                    'backgroundColor': '#343a40',
+                    'color': 'white'
+                },
+                style_data_conditional=[
+                    {
+                        'if': {'column_id': 'Top 3 Umiejętności'},
+                        'textAlign': 'left',
+                        'whiteSpace': 'normal',
+                        'height': 'auto',
+                    }
+                ]
+            )
+        
         return dbc.Container([
             dbc.Row([
                 dbc.Col([
@@ -178,7 +227,7 @@ class ChartGenerator:
                             stats_table
                         ])
                     ])
-                ], md=6),
+                ], md=4),
                 dbc.Col([
                     dbc.Card([
                         dbc.CardBody([
@@ -186,7 +235,15 @@ class ChartGenerator:
                             combo_table
                         ])
                     ])
-                ], md=6)
+                ], md=4),
+                dbc.Col([
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H4("📂 Top 3 Umiejętności wg Kategorii"),
+                            category_skills_table if top_skills_by_category else html.P("Brak danych o kategoriach")
+                        ])
+                    ])
+                ], md=4)
             ], className="mb-4"),
             
             dbc.Row([
