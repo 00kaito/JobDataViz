@@ -393,7 +393,7 @@ class DataProcessor:
                     avg_without = np.mean(without_skill_salaries)
                     
                     skill_correlations[skill] = {
-                        'correlation': (avg_with - avg_without) / max(avg_with, avg_without, 1),  # Simplified correlation
+                        'correlation': (avg_with - avg_without) / max(float(avg_with), float(avg_without), 1.0),  # Simplified correlation
                         'avg_with_skill': avg_with,
                         'avg_without_skill': avg_without,
                         'count_with_skill': len(with_skill_salaries),

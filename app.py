@@ -398,15 +398,34 @@ def update_data(list_of_contents, list_of_names, existing_data):
         except Exception as e:
             return all_data, dbc.Alert(f"Błąd wczytywania pliku {name}: {str(e)}", color="danger")
     
-    # Remove duplicates based on URL
-    seen_urls = set()
+    # Remove duplicates based on key fields: role, category, city, company, salary, published_date, skills
+    seen_combinations = set()
     unique_data = []
-    for item in all_data:
-        if item.get('url') not in seen_urls:
-            unique_data.append(item)
-            seen_urls.add(item.get('url'))
+    duplicates_count = 0
     
-    return unique_data, dbc.Alert(f"Pomyślnie wczytano {len(unique_data)} unikalnych ofert pracy", color="success")
+    for item in all_data:
+        # Create a tuple of key fields to identify duplicates
+        duplicate_key = (
+            item.get('role', ''),
+            item.get('category', ''),
+            item.get('city', ''),
+            item.get('company', ''),
+            item.get('salary', ''),
+            item.get('published_date', ''),
+            str(sorted(item.get('skills', {}).items()) if isinstance(item.get('skills'), dict) else '')
+        )
+        
+        if duplicate_key not in seen_combinations:
+            unique_data.append(item)
+            seen_combinations.add(duplicate_key)
+        else:
+            duplicates_count += 1
+    
+    message = f"Pomyślnie wczytano {len(unique_data)} unikalnych ofert pracy"
+    if duplicates_count > 0:
+        message += f" (pominięto {duplicates_count} duplikatów)"
+    
+    return unique_data, dbc.Alert(message, color="success")
 
 # Callback for updating filter options
 @app.callback(
