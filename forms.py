@@ -25,41 +25,29 @@ class RegistrationForm(FlaskForm):
         DataRequired(), 
         EqualTo('password', message='Hasła muszą być identyczne')
     ])
-    preferred_category = SelectField('Branża/kategoria zatrudnienia', validators=[DataRequired()])
+    employment_category = SelectField('Branża/kategorie zatrudnienia, których statystyki najbardziej Cię interesują', validators=[DataRequired()])
     submit = SubmitField('Zarejestruj się')
     
     def __init__(self, *args, **kwargs):
         super(RegistrationForm, self).__init__(*args, **kwargs)
-        # Pobierz dostępne kategorie z pliku lub bazy danych
-        self.preferred_category.choices = self.get_available_categories()
+        # Ustaw dostępne kategorie zatrudnienia
+        self.employment_category.choices = self.get_employment_categories()
     
-    def get_available_categories(self):
-        """Pobierz dostępne kategorie zatrudnienia"""
-        try:
-            # Spróbuj pobrać kategorie z aplikacji Dash
-            from flask import current_app
-            if current_app:
-                with current_app.app_context():
-                    # Spróbuj pobrać dane z sesji lub cache
-                    pass
-        except Exception:
-            pass
-        
-        # Domyślne kategorie jeśli brak danych
-        default_categories = [
+    def get_employment_categories(self):
+        """Pobierz kategorie zatrudnienia IT"""
+        categories = [
             ('', 'Wybierz kategorię'),
-            ('IT', 'Informatyka / IT'),
-            ('Finance', 'Finanse / Bankowość'),
-            ('Marketing', 'Marketing / Reklama'),
-            ('Sales', 'Sprzedaż'),
-            ('HR', 'Zasoby Ludzkie'),
-            ('Operations', 'Operacje / Logistyka'),
-            ('Engineering', 'Inżynieria'),
-            ('Healthcare', 'Ochrona Zdrowia'),
-            ('Education', 'Edukacja'),
-            ('Other', 'Inne')
+            ('Frontend', 'Frontend'),
+            ('Backend', 'Backend'),
+            ('FullStack', 'FullStack'),
+            ('Data/AI', 'Data/AI'),
+            ('Admin / Devops & Infra', 'Admin / Devops & Infra'),
+            ('Security', 'Security'),
+            ('QA & Testing', 'QA & Testing'),
+            ('Architecture', 'Architecture'),
+            ('PM / ERP & Business', 'PM / ERP & Business')
         ]
-        return default_categories
+        return categories
     
     def validate_first_name(self, first_name):
         # Sprawdź czy imię zawiera tylko litery i spacje
@@ -73,8 +61,9 @@ class RegistrationForm(FlaskForm):
             raise ValidationError('Ten adres email jest już zarejestrowany.')
 
 class UserManagementForm(FlaskForm):
-    username = StringField('Nazwa użytkownika', validators=[DataRequired()])
+    first_name = StringField('Imię', validators=[DataRequired()])
     email = StringField('Email', validators=[DataRequired(), Email()])
+    employment_category = SelectField('Kategoria zatrudnienia', validators=[DataRequired()])
     role = SelectField('Rola', choices=[
         ('viewer', 'Przeglądający'),
         ('analyst', 'Analityk'),
@@ -82,3 +71,23 @@ class UserManagementForm(FlaskForm):
     ], validators=[DataRequired()])
     is_active = BooleanField('Aktywny')
     submit = SubmitField('Zapisz zmiany')
+    
+    def __init__(self, *args, **kwargs):
+        super(UserManagementForm, self).__init__(*args, **kwargs)
+        # Ustaw dostępne kategorie zatrudnienia
+        self.employment_category.choices = self.get_employment_categories()
+    
+    def get_employment_categories(self):
+        """Pobierz kategorie zatrudnienia IT"""
+        categories = [
+            ('Frontend', 'Frontend'),
+            ('Backend', 'Backend'),
+            ('FullStack', 'FullStack'),
+            ('Data/AI', 'Data/AI'),
+            ('Admin / Devops & Infra', 'Admin / Devops & Infra'),
+            ('Security', 'Security'),
+            ('QA & Testing', 'QA & Testing'),
+            ('Architecture', 'Architecture'),
+            ('PM / ERP & Business', 'PM / ERP & Business')
+        ]
+        return categories

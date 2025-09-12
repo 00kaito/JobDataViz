@@ -21,7 +21,7 @@ def create_auth_routes(app):
                 next_page = request.args.get('next')
                 if not next_page or urlparse(next_page).netloc != '':
                     next_page = url_for('dashboard')
-                flash(f'Witaj, {user.first_name or user.username}!', 'success')
+                flash(f'Witaj, {user.first_name}!', 'success')
                 return redirect(next_page)
             else:
                 flash('Nieprawidłowy email lub hasło', 'error')
@@ -39,23 +39,10 @@ def create_auth_routes(app):
             user_count = User.query.count()
             role = 'admin' if user_count == 0 else 'viewer'
             
-            # Generate username from first name and email
-            first_name = (form.first_name.data or '').lower().replace(' ', '')
-            email_prefix = (form.email.data or '').split('@')[0]
-            base_username = f"{first_name}_{email_prefix}"
-            
-            # Ensure username is unique
-            username = base_username
-            counter = 1
-            while User.query.filter_by(username=username).first():
-                username = f"{base_username}_{counter}"
-                counter += 1
-            
             user = User(
-                username=username,
                 first_name=form.first_name.data,
                 email=form.email.data,
-                preferred_category=form.preferred_category.data,
+                employment_category=form.employment_category.data,
                 role=role
             )
             user.set_password(form.password.data)
@@ -70,7 +57,7 @@ def create_auth_routes(app):
     @app.route('/logout')
     def logout():
         if current_user.is_authenticated:
-            flash(f'Do widzenia, {current_user.username}!', 'info')
+            flash(f'Do widzenia, {current_user.first_name}!', 'info')
             logout_user()
         return redirect(url_for('index'))
 
@@ -101,7 +88,7 @@ def create_admin_routes(app):
             user.is_active = not user.is_active
             db.session.commit()
             status = 'aktywowany' if user.is_active else 'dezaktywowany'
-            flash(f'Użytkownik {user.username} został {status}', 'success')
+            flash(f'Użytkownik {user.email} został {status}', 'success')
         
         return redirect(url_for('admin_panel'))
     
@@ -122,6 +109,6 @@ def create_admin_routes(app):
         else:
             user.role = role
             db.session.commit()
-            flash(f'Rola użytkownika {user.username} została zmieniona na {role}', 'success')
+            flash(f'Rola użytkownika {user.email} została zmieniona na {role}', 'success')
         
         return redirect(url_for('admin_panel'))

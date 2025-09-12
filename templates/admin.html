@@ -15,8 +15,9 @@
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Nazwa użytkownika</th>
+                                <th>Imię</th>
                                 <th>Email</th>
+                                <th>Kategoria zatrudnienia</th>
                                 <th>Rola</th>
                                 <th>Status</th>
                                 <th>Data rejestracji</th>
@@ -28,12 +29,13 @@
                             <tr>
                                 <td>{{ user.id }}</td>
                                 <td>
-                                    {{ user.username }}
+                                    {{ user.first_name }}
                                     {% if user.id == current_user.id %}
                                         <span class="badge bg-info ms-1">Ty</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ user.email }}</td>
+                                <td>{{ user.employment_category }}</td>
                                 <td>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">

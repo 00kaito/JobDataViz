@@ -46,14 +46,11 @@
                     </div>
                     
                     <div class="mb-3">
-                        {{ form.preferred_category.label(class="form-label") }}
-                        {{ form.preferred_category(class="form-select") }}
-                        {% for error in form.preferred_category.errors %}
+                        {{ form.employment_category.label(class="form-label") }}
+                        {{ form.employment_category(class="form-select") }}
+                        {% for error in form.employment_category.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
-                        <small class="form-text text-muted">
-                            Wybierz branżę, której statystyki zatrudnienia Cię najbardziej interesują.
-                        </small>
                     </div>
                     
                     <div class="d-grid">
@@ -70,7 +67,7 @@
 
         <div class="alert alert-info mt-3">
             <i class="fas fa-info-circle me-2"></i>
-            <strong>Informacja:</strong> Twoja nazwa użytkownika zostanie wygenerowana automatycznie na podstawie imienia i emaila.
+            <strong>Informacja:</strong> Do logowania używaj adresu email podanego podczas rejestracji.
         </div>
     </div>
 </div>

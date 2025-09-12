@@ -262,7 +262,7 @@ def update_ui_based_on_auth(data):
         
         # User info header
         user_info = html.Div([
-            html.P(f"Witaj, {current_user.username}!", className="text-center text-muted mb-1"),
+            html.P(f"Witaj, {current_user.first_name}!", className="text-center text-muted mb-1"),
             html.P(f"Rola: {current_user.role.title()}", className="text-center text-muted mb-4")
         ])
         
