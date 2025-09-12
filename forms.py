@@ -26,12 +26,15 @@ class RegistrationForm(FlaskForm):
         EqualTo('password', message='Hasła muszą być identyczne')
     ])
     employment_category = SelectField('Branża/kategorie zatrudnienia, których statystyki najbardziej Cię interesują', validators=[DataRequired()])
+    backend_technology = SelectField('Technologia backendowa', validators=[])
     submit = SubmitField('Zarejestruj się')
     
     def __init__(self, *args, **kwargs):
         super(RegistrationForm, self).__init__(*args, **kwargs)
         # Ustaw dostępne kategorie zatrudnienia
         self.employment_category.choices = self.get_employment_categories()
+        # Ustaw dostępne technologie backendowe
+        self.backend_technology.choices = self.get_backend_technologies()
     
     def get_employment_categories(self):
         """Pobierz kategorie zatrudnienia IT"""
@@ -48,6 +51,21 @@ class RegistrationForm(FlaskForm):
             ('PM / ERP & Business', 'PM / ERP & Business')
         ]
         return categories
+    
+    def get_backend_technologies(self):
+        """Pobierz dostępne technologie backendowe"""
+        technologies = [
+            ('', 'Wybierz technologię'),
+            ('PHP', 'PHP'),
+            ('Ruby', 'Ruby'),
+            ('Python', 'Python'),
+            ('Java', 'Java'),
+            ('.NET', '.NET'),
+            ('Scala', 'Scala'),
+            ('C', 'C'),
+            ('Go', 'Go')
+        ]
+        return technologies
     
     def validate_first_name(self, first_name):
         # Sprawdź czy imię zawiera tylko litery i spacje

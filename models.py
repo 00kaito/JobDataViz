@@ -15,6 +15,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), default='viewer')  # viewer, analyst, admin
     employment_category = db.Column(db.String(100), nullable=False)  # Kategoria zatrudnienia
+    backend_technology = db.Column(db.String(50), nullable=True)  # Technologia backendowa (tylko dla Backend)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
     

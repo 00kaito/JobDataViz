@@ -47,10 +47,21 @@
                     
                     <div class="mb-3">
                         {{ form.employment_category.label(class="form-label") }}
-                        {{ form.employment_category(class="form-select") }}
+                        {{ form.employment_category(class="form-select", id="employment_category") }}
                         {% for error in form.employment_category.errors %}
                             <div class="text-danger small">{{ error }}</div>
                         {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3" id="backend_technology_field" style="display: none;">
+                        {{ form.backend_technology.label(class="form-label") }}
+                        {{ form.backend_technology(class="form-select") }}
+                        {% for error in form.backend_technology.errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                        {% endfor %}
+                        <small class="form-text text-muted">
+                            Wybierz technologię backendową, która Cię najbardziej interesuje.
+                        </small>
                     </div>
                     
                     <div class="d-grid">
@@ -71,4 +82,32 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const employmentCategory = document.getElementById('employment_category');
+    const backendTechnologyField = document.getElementById('backend_technology_field');
+    const backendTechnologySelect = document.querySelector('#backend_technology_field select');
+    
+    function toggleBackendTechnology() {
+        if (employmentCategory.value === 'Backend') {
+            backendTechnologyField.style.display = 'block';
+            // Make field required when visible
+            backendTechnologySelect.setAttribute('required', 'required');
+        } else {
+            backendTechnologyField.style.display = 'none';
+            // Remove required attribute when hidden
+            backendTechnologySelect.removeAttribute('required');
+            // Clear selection when hidden
+            backendTechnologySelect.value = '';
+        }
+    }
+    
+    // Initial check
+    toggleBackendTechnology();
+    
+    // Listen for changes
+    employmentCategory.addEventListener('change', toggleBackendTechnology);
+});
+</script>
 {% endblock %}

@@ -39,10 +39,16 @@ def create_auth_routes(app):
             user_count = User.query.count()
             role = 'admin' if user_count == 0 else 'viewer'
             
+            # Handle backend technology field
+            backend_tech = None
+            if form.employment_category.data == 'Backend' and form.backend_technology.data:
+                backend_tech = form.backend_technology.data
+            
             user = User(
                 first_name=form.first_name.data,
                 email=form.email.data,
                 employment_category=form.employment_category.data,
+                backend_technology=backend_tech,
                 role=role
             )
             user.set_password(form.password.data)

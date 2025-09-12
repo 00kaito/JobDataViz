@@ -35,7 +35,12 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ user.email }}</td>
-                                <td>{{ user.employment_category }}</td>
+                                <td>
+                                    {{ user.employment_category }}
+                                    {% if user.backend_technology %}
+                                        <br><small class="text-muted">{{ user.backend_technology }}</small>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     <div class="dropdown">
                                         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
