@@ -149,17 +149,16 @@ class User:
 - **NumPy** - Obliczenia numeryczne
 - **Collections** - Counter dla analizy częstości
 
-## 🐧 Instalacja Lokalna (Linux bez Docker)
+## 🐧 Instalacja Lokalna (Ubuntu z PostgreSQL w Docker)
 
 ### 1. Wymagania systemowe
-- **System operacyjny**: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Fedora 35+
+- **System operacyjny**: Ubuntu 20.04 lub nowszy
 - **Python**: 3.11 lub nowszy
-- **PostgreSQL**: 12 lub nowszy
+- **Docker**: Do uruchomienia bazy danych PostgreSQL
 - **Git**: Do klonowania repozytorium
 
 ### 2. Instalacja zależności systemowych
 
-#### Ubuntu/Debian:
 ```bash
 # Aktualizacja systemu
 sudo apt update && sudo apt upgrade -y
@@ -173,65 +172,62 @@ sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
 # Alternatywnie, użyj systemowego Python 3.10+ (wystarczający):
 # sudo apt install -y python3 python3-venv python3-dev python3-pip
 
-# Instalacja PostgreSQL
-sudo apt install -y postgresql postgresql-contrib postgresql-server-dev-all
+# Instalacja Docker
+sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io
 
-# Instalacja dodatkowych narzędzi
+# Dodanie użytkownika do grupy docker (wymaga ponownego logowania)
+sudo usermod -aG docker $USER
+
+# Instalacja dodatkowych narzędzi do kompilacji
 sudo apt install -y git curl build-essential libpq-dev
 ```
 
-#### CentOS/RHEL/Fedora:
-```bash
-# CentOS/RHEL
-sudo dnf install -y python3.11 python3.11-devel python3-pip postgresql postgresql-server postgresql-devel git gcc gcc-c++
-
-# Fedora
-sudo dnf install -y python3.11 python3.11-devel python3-pip postgresql postgresql-server postgresql-devel git gcc gcc-c++
-
-# Inicjalizacja PostgreSQL (CentOS/RHEL)
-sudo postgresql-setup --initdb
-sudo systemctl enable postgresql
-sudo systemctl start postgresql
-```
-
-### 3. Generowanie bezpiecznego hasła
+### 3. Uruchomienie bazy danych PostgreSQL w Docker
 
 ```bash
+# Ponowne logowanie dla aktywacji grupy docker (lub użyj newgrp docker)
+newgrp docker
+
 # Generowanie bezpiecznego hasła do bazy danych
 DB_PASSWORD=$(python3 -c "import secrets, string; chars=string.ascii_letters+string.digits; print(''.join(secrets.choice(chars) for _ in range(20)))")
 
 echo "✅ Wygenerowane hasło do bazy danych: ${DB_PASSWORD}"
-echo "❗ ZAPAMIĘTAJ to hasło - będzie użyte w następnym kroku!"
+
+# Utworzenie katalogu na dane PostgreSQL
+mkdir -p pgdata
+
+# Uruchomienie kontenera PostgreSQL z trwałym przechowywaniem danych
+docker run -d \
+  --name jobmarket-postgres \
+  -e POSTGRES_DB=jobmarket \
+  -e POSTGRES_USER=jobmarket \
+  -e POSTGRES_PASSWORD=${DB_PASSWORD} \
+  -e POSTGRES_INITDB_ARGS="--encoding=UTF8 --locale=C" \
+  -p 127.0.0.1:5432:5432 \
+  -v $(pwd)/pgdata:/var/lib/postgresql/data \
+  --restart=unless-stopped \
+  postgres:15
+
+echo "✅ Kontener PostgreSQL uruchomiony pomyślnie"
+
+# Sprawdzenie czy kontener działa
+docker ps | grep jobmarket-postgres
+
+# Oczekiwanie na gotowość bazy danych
+echo "⏳ Oczekiwanie na gotowość PostgreSQL..."
+until docker exec jobmarket-postgres pg_isready -U jobmarket -d jobmarket >/dev/null 2>&1; do
+  echo -n "."
+  sleep 1
+done
+echo ""
+echo "✅ PostgreSQL jest gotowy do połączeń"
 ```
 
-### 4. Konfiguracja PostgreSQL
-
-```bash
-# Przełączenie na użytkownika postgres i konfiguracja bazy
-sudo -u postgres psql << EOF
-CREATE DATABASE jobmarket;
-CREATE USER jobmarket WITH PASSWORD '${DB_PASSWORD}';
-ALTER USER jobmarket CREATEDB;
-GRANT ALL PRIVILEGES ON DATABASE jobmarket TO jobmarket;
-\q
-EOF
-
-echo "✅ Baza danych PostgreSQL skonfigurowana pomyślnie"
-```
-
-**Opcjonalnie - Konfiguracja połączeń lokalnych:**
-```bash
-# Edycja pliku konfiguracyjnego (lokalizacja może się różnić)
-sudo nano /etc/postgresql/14/main/pg_hba.conf
-
-# Dodaj linię dla lokalnych połączeń:
-local   jobmarket    jobmarket                     md5
-
-# Restart PostgreSQL
-sudo systemctl restart postgresql
-```
-
-### 5. Klonowanie i przygotowanie projektu
+### 4. Klonowanie i przygotowanie projektu
 
 ```bash
 # Klonowanie repozytorium
@@ -248,14 +244,14 @@ source venv/bin/activate
 pip install --upgrade pip setuptools wheel
 ```
 
-### 6. Instalacja zależności Python
+### 5. Instalacja zależności Python
 
 ```bash
 # Instalacja z pyproject.toml (zalecane)
 pip install -e .
 ```
 
-### 7. Konfiguracja zmiennych środowiskowych
+### 6. Konfiguracja zmiennych środowiskowych
 
 ```bash
 # Utworzenie pliku .env z wcześniej wygenerowanym hasłem
@@ -276,12 +272,27 @@ set +a
 # Dla trwałej konfiguracji dodaj do ~/.bashrc (opcjonalnie)
 echo "# Job Market Dashboard environment" >> ~/.bashrc
 echo "set -a; source $(pwd)/.env; set +a" >> ~/.bashrc
+
+# Sprawdzenie czy kontener PostgreSQL działa
+if ! docker ps | grep jobmarket-postgres >/dev/null; then
+  echo "❌ Kontener PostgreSQL nie działa - sprawdź krok 3"
+else
+  echo "✅ Kontener PostgreSQL działa poprawnie"
+fi
 ```
 
-### 8. Inicjalizacja bazy danych
+### 7. Inicjalizacja bazy danych
 
 ```bash
-# Sprawdzenie połączenia z bazą danych
+# Oczekiwanie na gotowość bazy danych
+echo "⏳ Sprawdzanie połączenia z bazą danych..."
+until docker exec jobmarket-postgres pg_isready -U jobmarket -d jobmarket >/dev/null 2>&1; do
+  echo -n "."
+  sleep 1
+done
+echo ""
+
+# Inicjalizacja bazy danych
 python3 -c "
 from app import app
 from models import db, User
@@ -294,7 +305,7 @@ except Exception as e:
 "
 ```
 
-### 9. Uruchomienie aplikacji
+### 8. Uruchomienie aplikacji
 
 #### Rozwój (Development):
 ```bash
@@ -319,21 +330,24 @@ gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 \
          main:app
 ```
 
-### 10. Tworzenie usługi systemowej (opcjonalnie)
+### 9. Tworzenie usługi systemowej (opcjonalnie)
 
 ```bash
 # Utworzenie pliku usługi systemd
 sudo tee /etc/systemd/system/jobmarket.service > /dev/null << EOF
 [Unit]
 Description=Job Market Dashboard
-After=network.target postgresql.service
+After=network.target docker.service
+Requires=docker.service
 
 [Service]
 Type=simple
 User=$USER
 WorkingDirectory=$(pwd)
-Environment=PATH=$(pwd)/venv/bin
+Environment=PATH=$(pwd)/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=$(pwd)/.env
+ExecStartPre=/bin/bash -c '[ -n "$(docker ps -q -f name=^jobmarket-postgres$)" ] || docker start jobmarket-postgres'
+ExecStartPre=/bin/bash -c 'until docker exec jobmarket-postgres pg_isready -U jobmarket -d jobmarket >/dev/null 2>&1; do sleep 1; done'
 ExecStart=$(pwd)/venv/bin/gunicorn --bind 0.0.0.0:5000 --workers 4 main:app
 Restart=always
 RestartSec=3
@@ -354,7 +368,7 @@ sudo systemctl status jobmarket
 sudo journalctl -u jobmarket -f
 ```
 
-### 11. Weryfikacja instalacji
+### 10. Weryfikacja instalacji
 
 ```bash
 # Sprawdzenie czy aplikacja działa
@@ -367,12 +381,15 @@ tail -f logs/*.log
 python3 -c "
 from app import app
 from models import User
-with app.app_context():
-    print(f'Liczba użytkowników w bazie: {User.query.count()}')
+try:
+    with app.app_context():
+        print(f'✅ Liczba użytkowników w bazie: {User.query.count()}')
+except Exception as e:
+    print(f'❌ Błąd połączenia z bazą: {e}')
 "
 ```
 
-### 12. Pierwszy Administrator
+### 11. Pierwszy Administrator
 
 Po uruchomieniu aplikacji:
 1. Przejdź do `http://localhost:5000` lub `http://server-ip:5000`
@@ -384,15 +401,20 @@ Po uruchomieniu aplikacji:
 
 #### Problem z połączeniem do PostgreSQL:
 ```bash
-# Sprawdzenie czy PostgreSQL działa
-sudo systemctl status postgresql
+# Sprawdzenie czy kontener Docker działa
+docker ps | grep jobmarket-postgres
 
-# Sprawdzenie portów (preferuj ss zamiast netstat)
+# Sprawdzenie logów kontenera
+docker logs jobmarket-postgres
+
+# Sprawdzenie portów
 sudo ss -tlnp | grep 5432
-# lub tradycyjnie: sudo netstat -tlnp | grep 5432
 
-# Test połączenia
-psql -h localhost -U jobmarket -d jobmarket
+# Test połączenia bezpośrednio do kontenera
+docker exec -it jobmarket-postgres psql -U jobmarket -d jobmarket
+
+# Restart kontenera jeśli potrzeba
+docker restart jobmarket-postgres
 ```
 
 #### Problem z uprawnieniami Python:
