@@ -149,6 +149,277 @@ class User:
 - **NumPy** - Obliczenia numeryczne
 - **Collections** - Counter dla analizy częstości
 
+## 🐧 Instalacja Lokalna (Linux bez Docker)
+
+### 1. Wymagania systemowe
+- **System operacyjny**: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Fedora 35+
+- **Python**: 3.11 lub nowszy
+- **PostgreSQL**: 12 lub nowszy
+- **Git**: Do klonowania repozytorium
+
+### 2. Instalacja zależności systemowych
+
+#### Ubuntu/Debian:
+```bash
+# Aktualizacja systemu
+sudo apt update && sudo apt upgrade -y
+
+# Instalacja Python 3.11 i narzędzi
+# Dla Ubuntu 20.04/22.04 - dodaj deadsnakes PPA dla Python 3.11
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update
+sudo apt install -y python3.11 python3.11-venv python3.11-dev python3-pip
+
+# Alternatywnie, użyj systemowego Python 3.10+ (wystarczający):
+# sudo apt install -y python3 python3-venv python3-dev python3-pip
+
+# Instalacja PostgreSQL
+sudo apt install -y postgresql postgresql-contrib postgresql-server-dev-all
+
+# Instalacja dodatkowych narzędzi
+sudo apt install -y git curl build-essential libpq-dev
+```
+
+#### CentOS/RHEL/Fedora:
+```bash
+# CentOS/RHEL
+sudo dnf install -y python3.11 python3.11-devel python3-pip postgresql postgresql-server postgresql-devel git gcc gcc-c++
+
+# Fedora
+sudo dnf install -y python3.11 python3.11-devel python3-pip postgresql postgresql-server postgresql-devel git gcc gcc-c++
+
+# Inicjalizacja PostgreSQL (CentOS/RHEL)
+sudo postgresql-setup --initdb
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+```
+
+### 3. Generowanie bezpiecznego hasła
+
+```bash
+# Generowanie bezpiecznego hasła do bazy danych
+DB_PASSWORD=$(python3 -c "import secrets, string; chars=string.ascii_letters+string.digits; print(''.join(secrets.choice(chars) for _ in range(20)))")
+
+echo "✅ Wygenerowane hasło do bazy danych: ${DB_PASSWORD}"
+echo "❗ ZAPAMIĘTAJ to hasło - będzie użyte w następnym kroku!"
+```
+
+### 4. Konfiguracja PostgreSQL
+
+```bash
+# Przełączenie na użytkownika postgres i konfiguracja bazy
+sudo -u postgres psql << EOF
+CREATE DATABASE jobmarket;
+CREATE USER jobmarket WITH PASSWORD '${DB_PASSWORD}';
+ALTER USER jobmarket CREATEDB;
+GRANT ALL PRIVILEGES ON DATABASE jobmarket TO jobmarket;
+\q
+EOF
+
+echo "✅ Baza danych PostgreSQL skonfigurowana pomyślnie"
+```
+
+**Opcjonalnie - Konfiguracja połączeń lokalnych:**
+```bash
+# Edycja pliku konfiguracyjnego (lokalizacja może się różnić)
+sudo nano /etc/postgresql/14/main/pg_hba.conf
+
+# Dodaj linię dla lokalnych połączeń:
+local   jobmarket    jobmarket                     md5
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+```
+
+### 5. Klonowanie i przygotowanie projektu
+
+```bash
+# Klonowanie repozytorium
+git clone <repository-url>
+cd job-market-dashboard
+
+# Utworzenie środowiska wirtualnego
+python3.11 -m venv venv
+
+# Aktywacja środowiska wirtualnego
+source venv/bin/activate
+
+# Aktualizacja pip
+pip install --upgrade pip setuptools wheel
+```
+
+### 6. Instalacja zależności Python
+
+```bash
+# Instalacja z pyproject.toml (zalecane)
+pip install -e .
+```
+
+### 7. Konfiguracja zmiennych środowiskowych
+
+```bash
+# Utworzenie pliku .env z wcześniej wygenerowanym hasłem
+cat > .env << EOF
+DATABASE_URL=postgresql://jobmarket:${DB_PASSWORD}@localhost:5432/jobmarket
+SESSION_SECRET=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+FLASK_ENV=development
+PYTHONPATH=.
+EOF
+
+echo "✅ Plik .env utworzony pomyślnie"
+
+# Wczytanie zmiennych (dla bieżącej sesji) - bezpieczniejsza metoda
+set -a
+source .env
+set +a
+
+# Dla trwałej konfiguracji dodaj do ~/.bashrc (opcjonalnie)
+echo "# Job Market Dashboard environment" >> ~/.bashrc
+echo "set -a; source $(pwd)/.env; set +a" >> ~/.bashrc
+```
+
+### 8. Inicjalizacja bazy danych
+
+```bash
+# Sprawdzenie połączenia z bazą danych
+python3 -c "
+from app import app
+from models import db, User
+try:
+    with app.app_context():
+        db.create_all()
+    print('✅ Baza danych została zainicjalizowana pomyślnie')
+except Exception as e:
+    print(f'❌ Błąd inicjalizacji bazy danych: {e}')
+"
+```
+
+### 9. Uruchomienie aplikacji
+
+#### Rozwój (Development):
+```bash
+# Uruchomienie z Gunicorn (zalecane)
+gunicorn --bind 0.0.0.0:5000 --reload --timeout 120 main:app
+
+# Lub bezpośrednio z Python (tylko do rozwoju)
+python -c "from app import app; app.run(debug=True, host='0.0.0.0', port=5000)"
+```
+
+#### Produkcja:
+```bash
+# Utworzenie katalogu na logi
+mkdir -p logs
+
+# Uruchomienie z wieloma workerami
+gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 main:app
+
+# Z logowaniem
+gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 \
+         --access-logfile logs/access.log --error-logfile logs/error.log \
+         main:app
+```
+
+### 10. Tworzenie usługi systemowej (opcjonalnie)
+
+```bash
+# Utworzenie pliku usługi systemd
+sudo tee /etc/systemd/system/jobmarket.service > /dev/null << EOF
+[Unit]
+Description=Job Market Dashboard
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=$USER
+WorkingDirectory=$(pwd)
+Environment=PATH=$(pwd)/venv/bin
+EnvironmentFile=$(pwd)/.env
+ExecStart=$(pwd)/venv/bin/gunicorn --bind 0.0.0.0:5000 --workers 4 main:app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Uruchomienie usługi
+sudo systemctl daemon-reload
+sudo systemctl enable jobmarket
+sudo systemctl start jobmarket
+
+# Sprawdzenie statusu
+sudo systemctl status jobmarket
+
+# Logi usługi
+sudo journalctl -u jobmarket -f
+```
+
+### 11. Weryfikacja instalacji
+
+```bash
+# Sprawdzenie czy aplikacja działa
+curl http://localhost:5000
+
+# Sprawdzenie logów
+tail -f logs/*.log
+
+# Test połączenia z bazą danych
+python3 -c "
+from app import app
+from models import User
+with app.app_context():
+    print(f'Liczba użytkowników w bazie: {User.query.count()}')
+"
+```
+
+### 12. Pierwszy Administrator
+
+Po uruchomieniu aplikacji:
+1. Przejdź do `http://localhost:5000` lub `http://server-ip:5000`
+2. Kliknij "Zarejestruj się"
+3. Pierwszy użytkownik automatycznie otrzyma rolę administratora
+4. Zaloguj się używając emaila i hasła
+
+### Rozwiązywanie problemów
+
+#### Problem z połączeniem do PostgreSQL:
+```bash
+# Sprawdzenie czy PostgreSQL działa
+sudo systemctl status postgresql
+
+# Sprawdzenie portów (preferuj ss zamiast netstat)
+sudo ss -tlnp | grep 5432
+# lub tradycyjnie: sudo netstat -tlnp | grep 5432
+
+# Test połączenia
+psql -h localhost -U jobmarket -d jobmarket
+```
+
+#### Problem z uprawnieniami Python:
+```bash
+# Upewnienie się że środowisko wirtualne jest aktywne
+which python3
+# Powinno pokazać: /path/to/project/venv/bin/python3
+
+# Reinstalacja zależności
+pip install --upgrade --force-reinstall -e .
+```
+
+#### Problem z importami:
+```bash
+# Dodanie ścieżki projektu do PYTHONPATH
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+
+# Sprawdzenie czy wszystkie moduły się importują
+python3 -c "
+try:
+    import app, models, auth, forms, data_processor, visualizations
+    print('✅ Wszystkie moduły zaimportowane pomyślnie')
+except ImportError as e:
+    print(f'❌ Błąd importu: {e}')
+"
+```
+
 ## 🐳 Instalacja Lokalna (Docker)
 
 ### 1. Wymagania
@@ -223,9 +494,9 @@ services:
       - db
     command: >
       sh -c "
-        python -c 'from models import db; from app import server; 
-        with server.app_context(): db.create_all()' &&
-        gunicorn --bind 0.0.0.0:5000 --reload main:server
+        python -c 'from models import db; from app import app; 
+        with app.app_context(): db.create_all()' &&
+        gunicorn --bind 0.0.0.0:5000 --reload main:app
       "
 
 volumes:
@@ -288,10 +559,10 @@ FLASK_ENV=development
 ### Pierwsze Uruchomienie
 ```bash
 # Inicjalizacja bazy danych
-python -c "from models import db; from app import server; with server.app_context(): db.create_all()"
+python -c "from models import db; from app import app; with app.app_context(): db.create_all()"
 
 # Uruchomienie serwera
-gunicorn --bind 0.0.0.0:5000 main:server
+gunicorn --bind 0.0.0.0:5000 main:app
 ```
 
 ## 📊 Format Danych
@@ -335,10 +606,10 @@ Aplikacja oczekuje danych w formacie JSON:
 ### Testowanie
 ```bash
 # Sprawdź czy aplikacja startuje
-python main.py
+gunicorn --bind 0.0.0.0:5000 --reload main:app
 
 # Test połączenia z bazą
-python -c "from models import User; print(User.query.count())"
+python -c "from app import app; from models import User; with app.app_context(): print(f'Liczba użytkowników: {User.query.count()}')"
 ```
 
 ## 📝 Licencja
